@@ -25,3 +25,6 @@ torch>=2.9.1
 torchaudio>=2.9.1
 transformers>=4.57.1
 webrtcvad>=2.0.10
+openai
+redis
+pydantic
