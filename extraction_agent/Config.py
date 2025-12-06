@@ -2,7 +2,7 @@
 Simple configuration for Extraction Agent
 """
 import os
-
+fr
 class Config:
     # LLM Settings
     LLM_API_KEY = os.getenv("OPENAI_API_KEY")
