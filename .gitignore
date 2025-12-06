@@ -1,3 +1,7 @@
 .env
 *.pyc
 __pycache__
+__pycache__
+myenv
+ASR/__pycache__
+extraction_agent/__pycache__
