@@ -1,6 +1,7 @@
 import json
 import time
 import uuid
+import re
 from datetime import datetime
 import asyncio
 import redis.asyncio as redis
@@ -93,7 +94,8 @@ class ExtractionAgent:
                 timeout=10
             )
             try:
-                entities = json.loads(response)
+                cleaned = re.sub(r"^``[json|](http://_vscodecontentref_/0)``$", "", response, flags=re.MULTILINE).strip()
+                entities = json.loads(cleaned)
             except json.JSONDecodeError:
                 print(f"❌ Failed to parse LLM output: {response}")
                 entities = {}

@@ -112,22 +112,3 @@ class TranscriptionService:
             logger.error(f"Error processing audio {audio_path}: {e}")
             raise
 
-if __name__ == "__main__":
-
-    default_path = "/Users/maryamsaad/Downloads/New Recording 2.mp3"
-    
-    file_path = default_path
-    if len(sys.argv) > 1:
-        file_path = sys.argv[1]
-        
-    if os.path.exists(file_path):
-        try:
-            service = TranscriptionService()
-            result = service.process_audio(file_path)
-            print("\n--- Final Corrected Output ---")
-            print(result.full_corrected_text)
-            print("------------------------------")
-        except Exception as e:
-            print(f"An error occurred: {e}")
-    else:
-        print(f"File not found for testing: {file_path}")

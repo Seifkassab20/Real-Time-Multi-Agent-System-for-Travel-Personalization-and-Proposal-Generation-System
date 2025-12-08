@@ -6,3 +6,4 @@ myenv
 ASR/__pycache__
 extraction_agent/__pycache__
 *.json
+models_cache
