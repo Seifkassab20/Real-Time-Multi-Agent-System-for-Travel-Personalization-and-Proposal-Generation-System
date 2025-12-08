@@ -1,62 +1,53 @@
-# asr_engine.py
-from transformers import AutoProcessor, AutoModelForCTC
-import torch
-import torch.nn.functional as F
-import logging
-from dotenv import load_dotenv
 import os
+from dotenv import load_dotenv
+from transformers import AutoProcessor, SeamlessM4Tv2Model
+from huggingface_hub import snapshot_download
 
 load_dotenv()
+DEVICE = os.getenv("DEVICE")
+cache_dir = os.getenv("cache_dir")
+def ensure_model_downloaded(model_name: str, cache_dir: str | None = None ) -> str:
+    """Download model with progress via huggingface_hub."""
+    print(f"[model] Ensuring model {model_name} is available locally...")
+    repo_dir = snapshot_download(repo_id=model_name, cache_dir=cache_dir)
+    print(f"[model] ✓ Model available at: {repo_dir}")
+    return repo_dir
 
-ASR_MODEL = str(os.getenv("MODEL_NAME"))
-DEVICE = str(os.getenv("DEVICE")) 
-TARGET_SR = int(os.getenv("TARGET_SR"))
 
-logger = logging.getLogger("asr_engine")
-logger.setLevel(logging.INFO)
+class SeamlessModel:
+    """One-shot SeamlessM4Tv2 transcriber with strict preprocessing."""
 
-class ASREngine:
-    def __init__(self):
-        logger.info(f"Loading ASR model: {ASR_MODEL} on device {DEVICE}")
-        self.processor = AutoProcessor.from_pretrained(ASR_MODEL)
-        self.model = AutoModelForCTC.from_pretrained(ASR_MODEL).to(DEVICE)
-
-    def transcribe_chunk(self, audio_array) -> dict:
+    def __init__(
+        self,
+        model_name: str = "facebook/seamless-m4t-v2-large",
+        cache_dir: str | None = None,
+    ):
         """
-        Transcribe an audio chunk and return token-level confidence.
+        Initialize the model.
         
-        Returns:
-        {
-            "text": str,              # ASR text
-            "asr_confidence": float   # avg token confidence
-        }
+        Args:
+            model_name: HuggingFace model ID
+            device: -1 for CPU, >=0 for GPU device ID
+            cache_dir: Optional HF cache directory
         """
-        try:
-            # Tokenize audio
-            inputs = self.processor(audio_array, sampling_rate=TARGET_SR, return_tensors="pt", padding=True)
+        print("[Seamless] Loading SeamlessM4T v2 model...")
+        self.model_name = model_name
+        self.device = DEVICE
+        self.cache_dir = cache_dir
+        self.loaded = False
+        self.processor = None
+        self.model = None
 
-            # Forward pass to get logits
-            with torch.no_grad():
-                logits = self.model(inputs.input_values.to(DEVICE)).logits
-            # --- 1. Decode Text ---
-            pred_ids = torch.argmax(logits, dim=-1)
-            asr_text = self.processor.batch_decode(pred_ids)[0]
+        self._load()
 
-            # --- 2. Calculate Entropy ---
-            # Convert logits to probabilities (0.0 to 1.0)
-            probs = F.softmax(logits, dim=-1)
-            
-            # Formula: -sum(p * log(p))
-            # We add 1e-9 to prevent log(0) which results in -inf or NaN
-            log_probs = torch.log(probs + 1e-9)
-            entropy = -torch.sum(probs * log_probs, dim=-1)
-            
-            # Entropy is currently a list of values (one per time step). 
-            # We take the mean to get a single score for the chunk.
-            avg_entropy = float(entropy.mean().cpu())
-
-            return asr_text,avg_entropy
-
-        except Exception as e:
-            logger.error(f"ASR chunk transcription failed: {e}")
-            return  "",  10.0
+    def _load(self) -> None:
+        """Load model with progress."""
+        ensure_model_downloaded(self.model_name, cache_dir=self.cache_dir)
+        print(f"[model] Loading processor & model (device={DEVICE})...")
+        self.processor = AutoProcessor.from_pretrained( self.model_name, cache_dir=self.cache_dir, use_fast=False
+        )
+        self.model = SeamlessM4Tv2Model.from_pretrained(self.model_name, cache_dir=self.cache_dir, device_map="cpu"
+        )
+        self.model.to(self.device)
+        self.loaded = True
+        print("[Seamless] ✓ Model loaded successfully.")

@@ -2,12 +2,13 @@ import logging
 import os
 import time
 from typing import List, Optional
-from module.src.audio_utils import audio_chunk_generator
-from module.src.asr_engine import ASREngine
-from module.src.llm_engine import LLMEngine
-from module.src.pii_guard import PIIGuard 
-from module.src.security import SecurityManager
-from module.src.models import PipelineOutput, TranscriptionSegment
+from ASR.src.audio_utils import preprocess_and_stream
+from ASR.src.asr_engine import SeamlessModel
+from ASR.src.asr import ASREngine
+from ASR.src.llm_engine import LLMEngine
+from ASR.src.pii_guard import PIIGuard 
+from ASR.src.security import SecurityManager
+from ASR.src.models import PipelineOutput, TranscriptionSegment
 
 
 logger = logging.getLogger('asr_pipeline')
@@ -34,7 +35,7 @@ class TranscriptionService:
         raw_texts: List[str] = []
         corrected_texts: List[str] = []
         
-        stream = audio_chunk_generator(file_path)
+        stream = preprocess_and_stream(file_path)
         
         for i, audio_chunk in enumerate(stream):
             try:

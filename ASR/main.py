@@ -1,6 +1,6 @@
 import logging
 import sys
-from module.src.pipeline import TranscriptionService
+from ASR.src.pipeline import TranscriptionService
 
 
 logging.basicConfig(
@@ -11,7 +11,7 @@ logging.basicConfig(
 
 def main():
 
-    audio_file = "/Users/maryamsaad/Documents/ASR/Egyptian_Arabic_Conversational_Speech_Corpus/WAV/A0315_S013_0_G0348.wav"
+    audio_file = '/Users/maryamsaad/Downloads/New Recording 2.mp3'
     
     service = TranscriptionService()
     
