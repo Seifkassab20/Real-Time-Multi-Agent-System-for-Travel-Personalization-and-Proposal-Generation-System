@@ -1,4 +1,3 @@
-# src/llm_engine.py
 from ollama import Client
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
@@ -20,9 +19,12 @@ class PostCorrectionOutput(BaseModel):
 
 class LLMEngine:
     def __init__(self):
-        self.host = str(os.getenv("OLLAMA_HOST"))
+        self.host = "http://localhost:11434"
+        print(self.host)
         self.api_key = str(os.getenv("OLLAMA_API_KEY"))
-        self.model_name = str(os.getenv("CORRECTION_MODEL"))
+        print(self.api_key)
+        self.correction_model = str(os.getenv("CORRECTION_MODEL"))
+        print(self.correction_model)
         
         self.client = Client(host=self.host, headers={'Authorization': f'Bearer {self.api_key}'})
         self.parser = JsonOutputParser(pydantic_object=PostCorrectionOutput)
@@ -63,7 +65,7 @@ class LLMEngine:
     def _call_ollama(self, prompt_text: str) -> str:
         messages = [{"role": "user", "content": prompt_text}]
         try:
-            response = self.client.chat(model=self.model_name, messages=messages, stream=False)
+            response = self.client.chat(model=self.correction_model, messages=messages, stream=False)
             return response['message']['content']
         except Exception as e:
             logger.error(f"Ollama API Error: {e}")
@@ -104,3 +106,8 @@ class LLMEngine:
                 "requires_confirmation": True, 
                 "changes_made": False
             }
+        
+
+engine=LLMEngine()
+result = engine.correct_text("Hello, world!", 0.9)
+print(result)
