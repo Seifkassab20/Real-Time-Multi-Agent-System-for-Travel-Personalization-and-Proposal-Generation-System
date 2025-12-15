@@ -7,7 +7,7 @@ import asyncio
 import redis.asyncio as redis
 from pydantic import BaseModel
 from llm import llm_model
-from extraction_agent.models import TranscriptSegment, RawExtraction
+from extraction_agent.models import TranscriptSegment, RawExtraction, TravelPlan
 from extraction_agent.Config import Config
 
 
@@ -93,7 +93,10 @@ class ExtractionAgent:
             - Make activities semantically rich for RAG retrieval
             - Include context from surrounding conversation when possible
             - If nothing travel-related, return empty dict: {}
-            - Response must be valid JSON only, no markdown formatting
+            - Response MUST be valid RFC 8259 JSON ONLY (no markdown)
+            - DO NOT include comments of any kind (no //, no /* */)
+            - DO NOT include trailing commas
+            - Use standard double quotes for keys and strings
 
             Be FAST but PRECISE on activities.
             """        
@@ -139,12 +142,8 @@ class ExtractionAgent:
                 loop.run_in_executor(None, self._call_llm, segment.text),
                 timeout=10
             )
-            try:
-                cleaned = re.sub(r"^``[json|](http://_vscodecontentref_/0)``$", "", response, flags=re.MULTILINE).strip()
-                entities = json.loads(cleaned)
-            except json.JSONDecodeError:
-                print(f"❌ Failed to parse LLM output: {response}")
-                entities = {}
+            # _call_llm returns a dict of entities (or empty dict on failure)
+            entities = response if isinstance(response, dict) else {}
         except asyncio.TimeoutError:
             print("❌ LLM call timed out")
             entities = {}
@@ -166,16 +165,73 @@ class ExtractionAgent:
 
         return extraction
 
-    def _call_llm(self, text: str) -> str:
-        """Call local Ollama model synchronously"""
-        response = self.client.chat(
+    def _call_llm(self, text: str) -> dict:
+        """Call local LLM model and parse output as TravelPlan"""
+        response_obj = self.client.chat(
             messages=[
                 {"role": "system", "content": self.SYSTEM_PROMPT},
                 {"role": "user", "content": f"Extract entities from: \"{text}\""}
             ]
-
         )
-        return response.message.content
+        # Extract the assistant message content as string
+        content = None
+        # Ollama Python client may return a dict or a ChatResponse object
+        if isinstance(response_obj, str):
+            content = response_obj
+        else:
+            # Try dict-style access
+            try:
+                content = response_obj.get("message", {}).get("content")  # type: ignore[attr-defined]
+            except Exception:
+                content = None
+            # Try attribute access (ChatResponse.message.content)
+            if not content:
+                message_obj = getattr(response_obj, "message", None)
+                if message_obj is not None:
+                    content = getattr(message_obj, "content", None)
+
+        if not content or not isinstance(content, str):
+            print("❌ Empty or invalid LLM response content")
+            return {}
+
+        content = content.strip()
+        # Strip Markdown code fences if present
+        if content.startswith("```") and content.endswith("```"):
+            # Remove the first line (``` or ```json) and the last fence
+            lines = content.splitlines()
+            if len(lines) >= 2:
+                content = "\n".join(lines[1:-1]).strip()
+
+        # Sanitize common LLM JSON issues: comments and trailing commas
+        def _strip_json_comments(s: str) -> str:
+            # Remove //... comments
+            s = re.sub(r"(^|[^:])//.*$", r"\1", s, flags=re.MULTILINE)
+            # Remove /* ... */ comments
+            s = re.sub(r"/\*.*?\*/", "", s, flags=re.DOTALL)
+            return s
+
+        def _remove_trailing_commas(s: str) -> str:
+            # Remove trailing commas before } or ]
+            return re.sub(r",\s*(\}|\])", r"\1", s)
+
+        sanitized = _remove_trailing_commas(_strip_json_comments(content))
+
+        # Ensure we have JSON output
+        try:
+            data = json.loads(sanitized)
+        except json.JSONDecodeError:
+            # As a last resort, try original content without sanitation to aid debugging
+            print(f"❌ Failed to parse LLM output as JSON: {content}")
+            data = {}
+
+        # Validate and parse using Pydantic model
+        try:
+            travel_plan = TravelPlan(**data)
+            return travel_plan.dict(exclude_none=True)  
+        except Exception as e:
+            print(f"❌ TravelPlan validation error: {e}")
+            # Return raw dict if it is a dict; otherwise empty
+            return data if isinstance(data, dict) else {}
 
 
     async def _publish(self, extraction: RawExtraction):
