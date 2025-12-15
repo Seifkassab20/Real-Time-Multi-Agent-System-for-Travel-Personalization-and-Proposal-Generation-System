@@ -44,12 +44,15 @@ class LLMEngine:
         - Fix grammar, punctuation, spacing, and word boundaries.
         - Keep all Egyptian colloquial expressions (e.g., "عايز", "كده", "ماشي").
         - Do **NOT** convert anything to Modern Standard Arabic (MSA).
-        - Convert any Arabic numerals (e.g., "١٤") into English digits ("14").
+        - Convert any Arabic numerals (e.g., "٢٥") into English digits ("25").
         - Maintain a consistent conversational flow between the **agent** and the **customer**.
         - If the conversation contains English words, keep them unchanged (e.g., "airport pickup", "dinner cruise").
         - Do not rewrite, summarize, or add new information; only correct what is there.
         -Convert all arabic numerals to english numerals.
         - If sentence flow is broken, fix it while preserving meaning.
+        - IF no full stop is present, add one at the end of each sentence.
+        - IF no question mark is present, add one at the end of each question.
+        - IF no exclamation mark is present, add one at the end of each exclamation.
 
         ASR text:
         \"\"\"{asr_text}\"\"\"
