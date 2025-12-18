@@ -17,9 +17,9 @@ def extract_rating(rating_str):
     match = re.search(r"[\d.]+", str(rating_str))
     return float(match.group()) if match else None
 
-# ==============================
+# =============================
 # MAIN RECOMMENDATION AGENT
-# ==============================
+# =============================
 def recommend_hotels(profile: dict, hotels_df: pd.DataFrame, top_n=5):
     """
     Input:
