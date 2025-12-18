@@ -1,7 +1,7 @@
 import torch
-from ASR.src.preprocess_audio import audio_utils
-from ASR.src.load_model import LoadSeamlessModel
-from ASR.src.tracing_config import trace_cleanup_operation
+from backend.core.ASR.src.preprocess_audio import audio_utils
+from backend.core.ASR.src.load_model import LoadSeamlessModel
+from backend.core.ASR.src.tracing_config import trace_cleanup_operation
 from dotenv import load_dotenv
 import os
 from langsmith import traceable

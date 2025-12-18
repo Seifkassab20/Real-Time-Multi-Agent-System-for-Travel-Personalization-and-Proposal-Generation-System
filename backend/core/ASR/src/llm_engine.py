@@ -6,6 +6,8 @@ from dotenv import load_dotenv
 import logging
 import os
 from langsmith import traceable
+from backend.core.ASR.src.tracing_config import get_trace_metadata, is_tracing_enabled, trace_external_service_connection
+import time
 
 load_dotenv()
 
@@ -21,8 +23,7 @@ class PostCorrectionOutput(BaseModel):
 class LLMEngine:
     @traceable(run_type="tool", name="llm_engine_initialization")
     def __init__(self):
-        from ASR.src.tracing_config import get_trace_metadata, is_tracing_enabled, trace_external_service_connection
-        import time
+        
         
         initialization_start_time = time.time()
         

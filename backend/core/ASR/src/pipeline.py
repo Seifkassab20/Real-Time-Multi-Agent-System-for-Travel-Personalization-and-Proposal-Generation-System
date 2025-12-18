@@ -3,10 +3,10 @@ import os
 import sys
 import time
 from typing import List
-from ASR.src.asr_infrence import transcribe
-from ASR.src.llm_engine import LLMEngine
-from ASR.src.models import PipelineOutput, TranscriptionSegment
-from ASR.src.tracing_config import setup_tracing, get_trace_metadata, is_tracing_enabled, trace_file_operation, trace_cleanup_operation
+from backend.core.ASR.src.asr_infrence import transcribe
+from backend.core.ASR.src.llm_engine import LLMEngine
+from backend.core.ASR.src.models import PipelineOutput, TranscriptionSegment
+from backend.core.ASR.src.tracing_config import setup_tracing, get_trace_metadata, is_tracing_enabled, trace_file_operation, trace_cleanup_operation
 from langsmith import traceable
 
 # Configure logging
