@@ -4,6 +4,8 @@ import torchaudio
 import torch
 from dotenv import load_dotenv
 import os
+from langsmith import traceable
+from ASR.src.tracing_config import get_trace_metadata, is_tracing_enabled
 load_dotenv()
 
 class audio_utils:
@@ -44,8 +46,19 @@ class audio_utils:
 
         return waveform.numpy()
 
+    @traceable(run_type="tool", name="audio_chunking")
     def chunk_audio(self, waveform: torch.Tensor, sr: int = 16000, overlap_sec: float = 2.0):
-
+        """
+        Chunk audio waveform into overlapping segments.
+        
+        Args:
+            waveform: Input audio waveform tensor
+            sr: Sample rate (default: 16000)
+            overlap_sec: Overlap duration in seconds (default: 2.0)
+            
+        Returns:
+            List of audio chunks as numpy arrays
+        """
         samples_per_chunk = int(self.max_duration_sec * sr)
         overlap_samples = int(overlap_sec * sr)
         step = samples_per_chunk - overlap_samples
@@ -63,5 +76,25 @@ class audio_utils:
             
             if end == total_samples:
                 break
+        
+        # Calculate metadata for tracing
+        chunk_count = len(chunks)
+        chunk_duration_sec = self.max_duration_sec
+        total_duration_sec = total_samples / sr
+        
+        # Add tracing metadata if tracing is enabled
+        if is_tracing_enabled():
+            metadata = get_trace_metadata(
+                component="audio_chunking",
+                chunk_count=chunk_count,
+                chunk_duration_sec=chunk_duration_sec,
+                overlap_sec=overlap_sec,
+                total_duration_sec=total_duration_sec,
+                sample_rate=sr,
+                samples_per_chunk=samples_per_chunk,
+                overlap_samples=overlap_samples,
+                step_size=step
+            )
+
         
         return chunks

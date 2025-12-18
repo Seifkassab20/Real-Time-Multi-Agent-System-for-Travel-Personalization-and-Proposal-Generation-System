@@ -1,7 +1,8 @@
 import logging
 import sys
 from ASR.src.pipeline import TranscriptionService
-
+from ASR.src.tracing_config import setup_tracing, is_tracing_enabled
+from langsmith import traceable
 
 logging.basicConfig(
     level=logging.INFO,
@@ -9,14 +10,17 @@ logging.basicConfig(
     handlers=[logging.StreamHandler(sys.stdout)]
 )
 
+@traceable(run_type="chain", name="asr_main")
 def main():
-
+    # Set up tracing at application startup
+    setup_tracing()
+    
     audio_file = '/Users/maryamsaad/Downloads/New Recording 2.mp3'
     
     service = TranscriptionService()
     
     try:
-        result = service.process_file(audio_file)
+        result = service.process_audio(audio_file)
         
         print("\n--- Final Result ---")
         print(f"Raw: {result.full_raw_text[:100]}...")

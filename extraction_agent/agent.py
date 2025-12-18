@@ -6,7 +6,7 @@ from datetime import datetime
 import asyncio
 import redis.asyncio as redis
 from pydantic import BaseModel
-from llm import llm_model
+from backend.core.llm import llm_model
 from extraction_agent.models import TranscriptSegment, RawExtraction, TravelPlan
 from extraction_agent.Config import Config
 
