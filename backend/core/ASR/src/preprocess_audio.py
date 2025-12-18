@@ -5,7 +5,7 @@ import torch
 from dotenv import load_dotenv
 import os
 from langsmith import traceable
-from backend.core.ASR.src.tracing_config import get_trace_metadata, is_tracing_enabled
+from backend.core.tracing_config import get_trace_metadata, is_tracing_enabled
 load_dotenv()
 
 class audio_utils:

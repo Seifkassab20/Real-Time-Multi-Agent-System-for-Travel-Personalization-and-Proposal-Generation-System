@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 import logging
 import os
 from langsmith import traceable
-from backend.core.ASR.src.tracing_config import get_trace_metadata, is_tracing_enabled, trace_external_service_connection
+from backend.core.tracing_config import get_trace_metadata, is_tracing_enabled, trace_external_service_connection
 import time
 
 load_dotenv()

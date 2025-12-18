@@ -15,9 +15,9 @@ class TracingConfig:
     def __init__(self):
         """Initialize tracing configuration from environment variables."""
         self.tracing_enabled = self._get_bool_env("LANGSMITH_TRACING_V2", False)
-        self.endpoint = os.getenv("LANGSMITH_ENDPOINT", "https://api.smith.langchain.com")
+        self.endpoint = os.getenv("LANGSMITH_ENDPOINT")
         self.api_key = os.getenv("LANGSMITH_API_KEY")
-        self.project = os.getenv("LANGSMITH_PROJECT", "asr-pipeline-tracing")
+        self.project = os.getenv("LANGSMITH_PROJECT")
         
         # Validate configuration
         self._validate_config()

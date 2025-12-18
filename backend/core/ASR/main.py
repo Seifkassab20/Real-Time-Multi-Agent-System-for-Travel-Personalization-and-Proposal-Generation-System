@@ -1,7 +1,7 @@
 import logging
 import sys
 from backend.core.ASR.src.pipeline import TranscriptionService
-from backend.core.ASR.src.tracing_config import setup_tracing, is_tracing_enabled
+from backend.core.tracing_config import setup_tracing, is_tracing_enabled
 from langsmith import traceable
 
 logging.basicConfig(
