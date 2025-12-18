@@ -16,14 +16,15 @@ def extract_rating(rating_str):
 def estimate_activity_cost(category):
     """
     Heuristic cost estimation (EGP)
+    Costs based on typical activity expenses
     """
     costs = {
-        "cafe": 150,
-        "museum": 100,
-        "park": 50,
+        "cafe": 250,
+        "museum": 350,
+        "park": 100,
         "mall": 0
     }
-    return costs.get(category.lower(), 100)
+    return costs.get(category.lower(), 200)
 
 
 def extract_city_from_address(text):
@@ -130,6 +131,9 @@ def recommend_activities(profile, activities_df, activities_budget_per_day):
     df = df.dropna(subset=["name", "category"])
     df = df[df["category"].isin(preferred_types)]
 
+    # Add estimated cost for each activity
+    df["estimated_cost"] = df["category"].apply(estimate_activity_cost)
+
     # --------------------------
     # Location filtering
     # --------------------------
@@ -196,9 +200,9 @@ def recommend_activities(profile, activities_df, activities_budget_per_day):
         "recommendations": recommendations
     }
 
-def save_activites_result_to_json(result: dict, path="data/artifacts/activites_result.json"):
+def save_activities_result_to_json(result: dict, path="data/artifacts/activities_result.json"):
     """
-    Save activites recommendation result as JSON for the Planning Agent
+    Save activities recommendation result as JSON for the Planning Agent
     """
     Path(path).parent.mkdir(parents=True, exist_ok=True)
 
@@ -255,6 +259,7 @@ if __name__ == "__main__":
         [museums_df, cafes_df, parks_df, malls_df],
         ignore_index=True
     )
-    result = recommend_activities(profile, activities_df)
-    save_activites_result_to_json(result)
+    activities_budget_per_day = (profile["budget"]["total"] * 0.25) / profile["dates"]["days"]
+    result = recommend_activities(profile, activities_df, activities_budget_per_day)
+    save_activities_result_to_json(result)
 
