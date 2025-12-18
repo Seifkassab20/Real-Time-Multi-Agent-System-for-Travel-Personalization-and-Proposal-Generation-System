@@ -17,8 +17,23 @@ class NeonDatabase:
         """Initialize the engine and session factory if not already set."""
         if cls._engine is None:
             database_url = os.getenv("DATABASE_URL")
+            
+            # Convert to asyncpg URL format and remove incompatible SSL parameters
             async_url = re.sub(r"^postgresql:", "postgresql+asyncpg:", database_url)
-            cls._engine = create_async_engine(async_url, echo=True, future=True)
+            async_url = re.sub(r"[?&]sslmode=require", "", async_url)
+            async_url = re.sub(r"[?&]channel_binding=require", "", async_url)
+            
+            # Clean up any trailing '?' or '&' 
+            async_url = re.sub(r"[?&]$", "", async_url)
+            
+            print(f"Original URL: {database_url}")
+            print(f"Converted URL: {async_url}")
+
+            cls._engine = create_async_engine(
+                async_url, 
+                echo=True, 
+                future=True,
+            )
             cls._SessionLocal = sessionmaker(
                 bind=cls._engine,
                 class_=AsyncSession,

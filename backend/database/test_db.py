@@ -2,7 +2,7 @@ import asyncio
 from sqlalchemy import text
 from dotenv import load_dotenv
 from backend.database.db import NeonDatabase
-from backend.database.models import Base
+from backend.database.models.Base import Base
 load_dotenv()
 
 # Initialize your custom Database wrapper
@@ -11,9 +11,8 @@ engine = Db.init()
 
 async def init_db():
     async with engine.begin() as conn:
-        # Enable pgvector extension if not already
         try:
-            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+            await conn.execute(text("Select *"))
         except Exception as e:
             print(f"⚠️ Skipping extension creation: {e}")
         
