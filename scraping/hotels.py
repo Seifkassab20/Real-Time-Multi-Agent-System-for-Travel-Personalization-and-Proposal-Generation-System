@@ -11,9 +11,20 @@ from playwright.sync_api import sync_playwright
 CITIES = ["Cairo", "Giza"]
 file_path = "hotels_latest.xlsx"
 
+# Dates
 today = datetime.today()
 check_in = (today + timedelta(days=1)).strftime("%Y-%m-%d")
 check_out = (today + timedelta(days=4)).strftime("%Y-%m-%d")
+
+# Guests
+num_adults = 2
+num_rooms = 2
+children_ages = [3,7]          # e.g. [4, 8]
+num_children = len(children_ages)
+
+# Filters
+HOTELS_ONLY = True          # only hotels (no apartments / hostels)
+FAMILY_ROOMS_ONLY = True   # enable only if needed
 
 # =========================================================
 # HELPERS
@@ -23,6 +34,13 @@ def parse_price(price_text):
         return None
     match = re.search(r"(\d[\d,]*)", price_text)
     return float(match.group(1).replace(",", "")) if match else None
+
+
+def build_children_params():
+    """Booking.com requires child ages as repeated age= params"""
+    if num_children == 0:
+        return ""
+    return "&" + "&".join([f"age={age}" for age in children_ages])
 
 
 def close_all_popups(page):
@@ -65,7 +83,7 @@ def extract_amenities(card, page):
     keywords = {
         "wifi": ["wifi", "internet"],
         "pool": ["pool", "swimming"],
-        "family_friendly": ["family", "kids"],
+        "family_friendly": ["family", "kids", "child"],
         "parking": ["parking"],
         "restaurant": ["restaurant", "dining"],
         "airport_shuttle": ["airport shuttle", "shuttle"]
@@ -73,13 +91,13 @@ def extract_amenities(card, page):
 
     text_blob = ""
 
-    # 1️⃣ Try card-level text
+    # 1️⃣ Card-level text
     try:
         text_blob += card.inner_text().lower()
     except:
         pass
 
-    # 2️⃣ Fallback to hotel page
+    # 2️⃣ Hotel page fallback
     if not any(amenities.values()):
         try:
             link = card.locator("a").first.get_attribute("href")
@@ -108,18 +126,31 @@ def extract_amenities(card, page):
 
     return amenities
 
-
 # =========================================================
 # SCRAPE ONE CITY
 # =========================================================
 def scrape_city(page, city):
     print(f"\n➡ Scraping Booking.com for {city}")
 
+    children_params = build_children_params()
+
     url = (
         f"https://www.booking.com/searchresults.html?"
-        f"ss={city}&checkin={check_in}&checkout={check_out}"
-        f"&group_adults=2&no_rooms=1&group_children=0"
+        f"ss={city}"
+        f"&checkin={check_in}"
+        f"&checkout={check_out}"
+        f"&group_adults={num_adults}"
+        f"&no_rooms={num_rooms}"
+        f"&group_children={num_children}"
+        f"{children_params}"
     )
+
+    # Optional filters
+    if HOTELS_ONLY:
+        url += "&nflt=ht_id%3D204"
+
+    if FAMILY_ROOMS_ONLY:
+        url += "&nflt=hotelfacility%3D28"
 
     page.goto(url, timeout=90000)
     close_all_popups(page)
@@ -161,16 +192,12 @@ def scrape_city(page, city):
         total_price = price_numeric * num_nights if price_numeric else None
 
         try:
-            rating = card.locator(
-                "div[data-testid='review-score']"
-            ).inner_text()
+            rating = card.locator("div[data-testid='review-score']").inner_text()
         except:
             rating = None
 
         try:
-            location = card.locator(
-                "span[data-testid='address']"
-            ).inner_text()
+            location = card.locator("span[data-testid='address']").inner_text()
         except:
             location = None
 
@@ -189,9 +216,10 @@ def scrape_city(page, city):
         hotels_data.append({
             "city": city,
             "name": name,
-
+            "adults": num_adults,
+            "children": num_children,
+            "rooms": num_rooms,
             **amenities,
-
             "price_per_night_raw": price_raw,
             "price_per_night_egp": price_numeric,
             "num_of_nights": num_nights,
@@ -203,7 +231,6 @@ def scrape_city(page, city):
         })
 
     return hotels_data
-
 
 # =========================================================
 # MAIN
@@ -234,7 +261,6 @@ def main():
     df.to_excel(output_path, index=False)
 
     print(f"\n✅ DONE — Saved {len(df)} hotels to {output_path}")
-
 
 if __name__ == "__main__":
     main()
