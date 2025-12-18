@@ -1,5 +1,7 @@
 import pandas as pd
 import re
+import json
+from pathlib import Path
 
 # ==============================
 # Helpers
@@ -17,10 +19,11 @@ def extract_rating(rating_str):
     match = re.search(r"[\d.]+", str(rating_str))
     return float(match.group()) if match else None
 
-# =============================
+# ==============================
 # MAIN RECOMMENDATION AGENT
-# =============================
-def recommend_hotels(profile: dict, hotels_df: pd.DataFrame, top_n=5):
+# ==============================
+def recommend_hotels(profile, hotels_df, max_price_per_night, top_n=15):
+
     """
     Input:
       - profile (from Profile Agent)
@@ -37,12 +40,6 @@ def recommend_hotels(profile: dict, hotels_df: pd.DataFrame, top_n=5):
     num_days = profile["dates"]["days"]
     city = profile["destination"]["city"]
 
-    # Budget logic (planner-compatible)
-    HOTEL_BUDGET_RATIO = 0.45
-    hotel_budget = total_budget * HOTEL_BUDGET_RATIO
-
-    max_price_per_night = hotel_budget / num_days
-
     # --------------------------
     # Clean data
     # --------------------------
@@ -57,7 +54,7 @@ def recommend_hotels(profile: dict, hotels_df: pd.DataFrame, top_n=5):
     # Filter
     # --------------------------
     df = df[
-        (df["city"].str.lower() == city.lower()) &
+        (df["city"].str.lower() == city.lower())&
         (df["price_per_night"] <= max_price_per_night)
     ]
 
@@ -96,9 +93,17 @@ def recommend_hotels(profile: dict, hotels_df: pd.DataFrame, top_n=5):
         })
     return {
         "status": "OK",
-        "hotel_budget": hotel_budget,
+        "max_price_per_night": max_price_per_night,
         "recommendations": recommendations
     }
+def save_hotel_result_to_json(result: dict, path="data/artifacts/hotel_result.json"):
+    """
+    Save hotel recommendation result as JSON for the Planning Agent
+    """
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(result, f, ensure_ascii=False, indent=2)
 
 # ==============================
 profile = {
@@ -130,4 +135,5 @@ def print_hotel_recommendations(result: dict):
 hotels_df = pd.read_excel("data/hotels_latest.xlsx")
 
 result = recommend_hotels(profile, hotels_df)
-print_hotel_recommendations(result)
+save_hotel_result_to_json(result)
+
