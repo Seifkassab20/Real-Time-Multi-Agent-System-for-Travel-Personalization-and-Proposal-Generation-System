@@ -102,7 +102,7 @@ def recommend_hotels(profile: dict, hotels_df: pd.DataFrame, top_n=5):
 
 # ==============================
 profile = {
-    "budget": {"total": 20000},
+    "budget": {"total": 50000},
     "dates": {"days": 3},
     "destination": {"city": "Cairo"}
 }
