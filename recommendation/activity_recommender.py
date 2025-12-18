@@ -1,5 +1,7 @@
 import pandas as pd
 import re
+import json
+from pathlib import Path
 
 # ==============================
 # Helpers
@@ -86,7 +88,8 @@ def normalize_category(cat):
 # =============================
 # MAIN ACTIVITY RECOMMENDER
 # =============================
-def recommend_activities(profile: dict, activities_df: pd.DataFrame):
+def recommend_activities(profile, activities_df, activities_budget_per_day):
+
     """
     Rule-based, explainable activity recommender
     """
@@ -141,9 +144,10 @@ def recommend_activities(profile: dict, activities_df: pd.DataFrame):
     # --------------------------
     # Cost estimation
     # --------------------------
-    city_df["estimated_cost"] = city_df["category"].apply(
-        estimate_activity_cost
-    )
+    city_df = city_df[
+        city_df["estimated_cost"] <= activities_budget_per_day
+    ]
+
 
     # --------------------------
     # Scoring
@@ -176,7 +180,6 @@ def recommend_activities(profile: dict, activities_df: pd.DataFrame):
             "city": row["extracted_city"].capitalize(),
             "rating": row["rating_score"],
             "estimated_cost": row["estimated_cost"],
-            "link": row.get("link"),
             "reason": f"Highly rated {cat} in {row['extracted_city'].capitalize()}"
         })
 
@@ -189,9 +192,18 @@ def recommend_activities(profile: dict, activities_df: pd.DataFrame):
         "status": "OK",
         "days": days,
         "activities_per_day": activities_per_day,
-        "activities_count": len(recommendations),
+        "daily_budget": activities_budget_per_day,
         "recommendations": recommendations
     }
+
+def save_activites_result_to_json(result: dict, path="data/artifacts/activites_result.json"):
+    """
+    Save activites recommendation result as JSON for the Planning Agent
+    """
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(result, f, ensure_ascii=False, indent=2)
 
 # ==============================
 # Pretty Printer
@@ -244,5 +256,5 @@ if __name__ == "__main__":
         ignore_index=True
     )
     result = recommend_activities(profile, activities_df)
+    save_activites_result_to_json(result)
 
-    print_activity_recommendations(result)
