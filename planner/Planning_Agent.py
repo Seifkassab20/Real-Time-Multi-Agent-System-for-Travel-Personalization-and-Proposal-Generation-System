@@ -42,6 +42,11 @@ class PlanningAgent:
         activities = activities_result["recommendations"]
         activities_per_day = activities_result["activities_per_day"]
 
+        # Calculate daily meal budget based on food allocation (20% of total budget)
+        budget = self.distribute_budget()
+        lunch_cost = budget["food_per_day"] * 0.6
+        dinner_cost = budget["food_per_day"] * 0.4
+
         plan = {}
         activity_index = 0
 
@@ -63,13 +68,13 @@ class PlanningAgent:
             plan[day_key].insert(1, {
                 "type": "meal",
                 "name": "Lunch",
-                "estimated_cost": 200
+                "estimated_cost": round(lunch_cost, 2)
             })
 
             plan[day_key].append({
                 "type": "meal",
                 "name": "Dinner",
-                "estimated_cost": 300
+                "estimated_cost": round(dinner_cost, 2)
             })
 
         return {
@@ -106,7 +111,7 @@ def print_itinerary(plan):
 if __name__ == "__main__":
 
     profile = {
-        "budget": {"total": 5},
+        "budget": {"total": 30000},
         "dates": {"days": 3},
         "destination": {
             "city": ["Cairo", "Giza"]
@@ -119,7 +124,7 @@ if __name__ == "__main__":
 
     # ✅ Load agent outputs (ONLY source)
     hotel_result = load_json("data/artifacts/hotel_result.json")
-    activities_result = load_json("data/artifacts/activites_result.json")
+    activities_result = load_json("data/artifacts/activities_result.json")
 
     planner = PlanningAgent(profile)
 
