@@ -93,6 +93,7 @@ def recommend_hotels(profile, hotels_df, max_price_per_night, top_n=15):
         })
     return {
         "status": "OK",
+        "hotel_budget": df.head(top_n)["price_per_night"].sum() * num_days if not df.empty else 0,
         "max_price_per_night": max_price_per_night,
         "recommendations": recommendations
     }
@@ -134,6 +135,7 @@ def print_hotel_recommendations(result: dict):
 
 hotels_df = pd.read_excel("data/hotels_latest.xlsx")
 
-result = recommend_hotels(profile, hotels_df)
+max_price_per_night = (profile["budget"]["total"] * 0.45) / profile["dates"]["days"]
+result = recommend_hotels(profile, hotels_df, max_price_per_night)
 save_hotel_result_to_json(result)
 
