@@ -1,7 +1,7 @@
 import torch
 from backend.core.ASR.src.preprocess_audio import audio_utils
 from backend.core.ASR.src.load_model import LoadSeamlessModel
-from backend.core.tracing_config import trace_cleanup_operation
+from backend.core.tracing_config import get_metadata
 from dotenv import load_dotenv
 import os
 from langsmith import traceable
@@ -10,7 +10,7 @@ import time
 load_dotenv()
 utils=audio_utils()
 ASR=LoadSeamlessModel()
-processor,model= ASR._load()
+processor,model= ASR.load()
 
 
 @traceable(run_type="tool", name="confidence_calculation")
@@ -157,18 +157,9 @@ def transcribe(audio_path: str, tgt_lang: str = "arb"):
         chunk_results.append(chunk_result)
         final_text += " " + chunk_result["text"]
 
-        # Trace MPS cache clearing after each chunk
+        # Clear MPS cache after each chunk if using MPS device
         if device.type == "mps":
-            cleanup_result = trace_cleanup_operation(
-                "mps_cache",
-                {
-                    "device_type": device.type,
-                    "chunk_index": i,
-                    "total_chunks": len(chunks),
-                    "cleanup_trigger": "post_chunk_processing"
-                },
-                processing_context="asr_inference"
-            )
-            print(f"[cleanup] MPS cache cleared for chunk {i}: {cleanup_result.get('cache_cleared', False)}")
+            torch.mps.empty_cache()
+            print(f"[cleanup] MPS cache cleared for chunk {i}")
     return final_text.strip(), chunk_results  
             

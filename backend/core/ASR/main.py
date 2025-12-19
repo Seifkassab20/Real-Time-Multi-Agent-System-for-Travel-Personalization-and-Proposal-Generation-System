@@ -1,7 +1,7 @@
 import logging
 import sys
 from backend.core.ASR.src.pipeline import TranscriptionService
-from backend.core.tracing_config import setup_tracing, is_tracing_enabled
+import backend.core.tracing_config
 from langsmith import traceable
 
 logging.basicConfig(
@@ -11,10 +11,7 @@ logging.basicConfig(
 )
 
 @traceable(run_type="chain", name="asr_main")
-def main():
-    # Set up tracing at application startup
-    setup_tracing()
-    
+def main():    
     audio_file = '/Users/maryamsaad/Downloads/New Recording 2.mp3'
     
     service = TranscriptionService()

@@ -90,5 +90,3 @@ class OllamaCloudLLM:
 
 llm_model = OllamaLLM()
 llm_cloud_model = OllamaCloudLLM()
-# print(llm_cloud_model.chat(messages=[{"role": "user", "content": "Hello, Ollama Cloud!"}]))
-
