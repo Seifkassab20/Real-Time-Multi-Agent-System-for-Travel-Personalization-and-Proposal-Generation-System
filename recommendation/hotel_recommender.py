@@ -1,5 +1,7 @@
 import pandas as pd
 import re
+import json
+from pathlib import Path
 
 # ==============================
 # Helpers
@@ -20,7 +22,8 @@ def extract_rating(rating_str):
 # ==============================
 # MAIN RECOMMENDATION AGENT
 # ==============================
-def recommend_hotels(profile: dict, hotels_df: pd.DataFrame, top_n=5):
+def recommend_hotels(profile, hotels_df, max_price_per_night, top_n=15):
+
     """
     Input:
       - profile (from Profile Agent)
@@ -37,12 +40,6 @@ def recommend_hotels(profile: dict, hotels_df: pd.DataFrame, top_n=5):
     num_days = profile["dates"]["days"]
     city = profile["destination"]["city"]
 
-    # Budget logic (planner-compatible)
-    HOTEL_BUDGET_RATIO = 0.45
-    hotel_budget = total_budget * HOTEL_BUDGET_RATIO
-
-    max_price_per_night = hotel_budget / num_days
-
     # --------------------------
     # Clean data
     # --------------------------
@@ -57,7 +54,7 @@ def recommend_hotels(profile: dict, hotels_df: pd.DataFrame, top_n=5):
     # Filter
     # --------------------------
     df = df[
-        (df["city"].str.lower() == city.lower()) &
+        (df["city"].str.lower() == city.lower())&
         (df["price_per_night"] <= max_price_per_night)
     ]
 
@@ -96,13 +93,22 @@ def recommend_hotels(profile: dict, hotels_df: pd.DataFrame, top_n=5):
         })
     return {
         "status": "OK",
-        "hotel_budget": hotel_budget,
+        "hotel_budget": df.head(top_n)["price_per_night"].sum() * num_days if not df.empty else 0,
+        "max_price_per_night": max_price_per_night,
         "recommendations": recommendations
     }
+def save_hotel_result_to_json(result: dict, path="data/artifacts/hotel_result.json"):
+    """
+    Save hotel recommendation result as JSON for the Planning Agent
+    """
+    Path(path).parent.mkdir(parents=True, exist_ok=True)
+
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(result, f, ensure_ascii=False, indent=2)
 
 # ==============================
 profile = {
-    "budget": {"total": 20000},
+    "budget": {"total": 50000},
     "dates": {"days": 3},
     "destination": {"city": "Cairo"}
 }
@@ -129,5 +135,7 @@ def print_hotel_recommendations(result: dict):
 
 hotels_df = pd.read_excel("data/hotels_latest.xlsx")
 
-result = recommend_hotels(profile, hotels_df)
-print_hotel_recommendations(result)
+max_price_per_night = (profile["budget"]["total"] * 0.45) / profile["dates"]["days"]
+result = recommend_hotels(profile, hotels_df, max_price_per_night)
+save_hotel_result_to_json(result)
+

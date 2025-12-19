@@ -5,9 +5,9 @@ import pandas as pd
 from datetime import datetime, timedelta
 from playwright.sync_api import sync_playwright
 
-# =========================================================
+# ========================================================
 # CONFIG
-# =========================================================
+# ========================================================
 CITIES = ["Cairo", "Giza"]
 file_path = "hotels_latest.xlsx"
 
