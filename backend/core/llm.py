@@ -2,6 +2,11 @@ from ollama import chat, Client
 import os
 import json
 from pydantic import BaseModel, ValidationError
+from dotenv import load_dotenv
+
+# Ensure environment variables are loaded
+load_dotenv()
+
 
 class OllamaLLM:
     def __init__(self, model_name: str = "ministral-3:3b"):
@@ -26,10 +31,10 @@ class OllamaCloudLLM:
     def __init__(self, model_name: str = "gpt-oss:20b-cloud"):
         self.model_name = model_name
         self.client = Client(
-            host="https://ollama.com",  # Ensure this endpoint is correct for your cloud provider
+            host="https://ollama.com", 
             headers={"Authorization": f"Bearer {os.getenv('OLLAMA_API_KEY')}"}
         )
-
+    
     def chat(self, messages: list[dict], temperature: float = 0.0, max_tokens: int = 500):
         """Standard chat method returning string."""
         response = self.client.chat(
@@ -38,7 +43,8 @@ class OllamaCloudLLM:
             options={
                 "temperature": temperature,
                 "num_predict": max_tokens
-            }
+            },
+            format='json'
         )
         return response['message']['content']
 
@@ -83,5 +89,6 @@ class OllamaCloudLLM:
 
 
 llm_model = OllamaLLM()
-
+llm_cloud_model = OllamaCloudLLM()
+# print(llm_cloud_model.chat(messages=[{"role": "user", "content": "Hello, Ollama Cloud!"}]))
 
