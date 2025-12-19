@@ -1,14 +1,17 @@
 import json
 import re
-from backend.core.llm import llm_model
+
+from pydantic import ValidationError
+from backend.core.llm import llm_cloud_model
 from backend.core.extraction_agent.models import TranscriptSegment , Agent_output
 from datetime import date
+
 
 today = date.today().isoformat()
 class ExtractionAgent:
 
     def __init__(self):
-        self.llm = llm_model
+        self.llm = llm_cloud_model
         self.system_prompt = f"""
         You are a travel information extraction agent. Extract travel details from customer text and return ONLY valid JSON.
         Today's date is {date.today().isoformat()}
@@ -123,26 +126,66 @@ class ExtractionAgent:
         try:
             # Call the Ollama LLM
             response = self.llm.chat(messages, temperature=0.0, max_tokens=500)
+
+            # Debug the response structure
+            print("DEBUG - Response:", response)
+
+            # Handle different response formats
+            content = None
             
-            # Extract the content from the response
-            content = response['message']['content'].strip()          
-            try:
-                result = json.loads(content)
-                validated = Agent_output(**result)
-                return validated.model_dump(exclude_none=True)
+            # Case 1: Response is already a dict with the extracted data
+            if isinstance(response, dict):
+                # Check if it has the nested message structure
+                if 'message' in response and 'content' in response['message']:
+                    content = response['message']['content']
+                # Otherwise, assume it's the direct extracted data
+                elif any(key in response for key in ['budget', 'adults', 'children', 'city', 'check_in', 'check_out', 'activities', 'preferences', 'keywords']):
+                    # Response is already the extracted data
+                    try:
+                        validated = Agent_output(**response)
+                        return validated.model_dump(exclude_none=True)
+                    except ValidationError as e:
+                        print("DEBUG - Validation error on direct response:", e)
+                        return {}
+                else:
+                    print("DEBUG - Unknown dict format")
+                    return {}
+            
+            # Case 2: Response is a string
+            elif isinstance(response, str):
+                content = response
+            
+            # Case 3: Unknown format
+            else:
+                print("DEBUG - Unknown response type:", type(response))
+                return {}
+
+            # Process the content string
+            if content:
+                content = content.strip()
                 
-            except json.JSONDecodeError as e:
-                print(f"DEBUG - JSON Parse Error: {e}")
-                json_match = re.search(r'\{.*\}', content, re.DOTALL)
-                if json_match:
-                    json_str = json_match.group()
-                    print(f"DEBUG - Extracted JSON: {json_str}") 
-                    result = json.loads(json_str)
+                # Remove markdown code blocks if present
+                content = re.sub(r'^```json\s*', '', content)
+                content = re.sub(r'\s*```$', '', content)
+                content = content.strip()
+                
+                if not content:
+                    print("DEBUG - Content is empty after cleanup")
+                    return {}
+                
+                try:
+                    result = json.loads(content)
                     validated = Agent_output(**result)
                     return validated.model_dump(exclude_none=True)
-                else:
-                    print("DEBUG - No JSON found in response") 
+                except json.JSONDecodeError as e:
+                    print("DEBUG - Failed to parse content as JSON:", content[:100])
                     return {}
+                except ValidationError as e:
+                    print("DEBUG - Validation error:", e)
+                    return {}
+            
+            print("DEBUG - No content extracted")
+            return {}
             
         except Exception as e:
             print(f"Error in extraction: {e}")
