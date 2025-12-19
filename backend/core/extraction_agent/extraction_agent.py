@@ -125,9 +125,7 @@ class ExtractionAgent:
             response = self.llm.chat(messages, temperature=0.0, max_tokens=500)
             
             # Extract the content from the response
-            content = response['message']['content'].strip()
-            print(f"DEBUG - LLM Response: {content}")  
-            
+            content = response['message']['content'].strip()          
             try:
                 result = json.loads(content)
                 validated = Agent_output(**result)

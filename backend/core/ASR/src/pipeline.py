@@ -161,7 +161,7 @@ class TranscriptionService:
             
             segments: List[TranscriptionSegment] = []
             corrected_text_parts: List[str] = []
-
+            corrected_segments=[]
             # 2. Process chunks
             for i, chunk in enumerate(chunk_results):
                 text = chunk.get('text', '').strip()
@@ -193,12 +193,12 @@ class TranscriptionService:
                     confidence=confidence,
                     needs_review=needs_review
                 )
-                segments.append(segment)
+                print('SEGMENT ', segment)
                 
                 if corrected_text:
-                    corrected_text_parts.append(corrected_text)
+                    corrected_segments.append(segment)
 
-            full_corrected_text = " ".join(corrected_text_parts)
+
 
             # Calculate processing duration
             processing_end_time = time.time()
@@ -206,8 +206,8 @@ class TranscriptionService:
 
             output = PipelineOutput(
                 full_raw_text=raw_text,
-                full_corrected_text=full_corrected_text,
-                segments=segments,
+                full_corrected_text=" ".join([segment.corrected_text for segment in corrected_segments]),
+                segments=corrected_segments,
                 metadata={
                     "audio_path": audio_path,
                     "chunk_count": chunk_count,
@@ -232,7 +232,7 @@ class TranscriptionService:
                 logger.info(f"Final cleanup metadata: {final_cleanup_result}")
             
             logger.info("Audio processing completed successfully.")
-            return output
+            return corrected_segments
 
         except FileNotFoundError as e:
             # Trace FileNotFoundError with file path details
