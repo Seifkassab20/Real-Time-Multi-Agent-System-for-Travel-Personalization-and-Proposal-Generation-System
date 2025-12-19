@@ -1,51 +1,50 @@
-from transformers import AutoProcessor
-from transformers import SeamlessM4Tv2ForSpeechToText
-from dotenv import load_dotenv
 import os
 import time
-from langsmith import traceable, get_current_run_tree
+from dotenv import load_dotenv
+from transformers import AutoProcessor, SeamlessM4Tv2ForSpeechToText
+from langsmith import traceable
+from backend.core.tracing_config import get_metadata
 load_dotenv()
-
-
-device=os.getenv('DEVICE')
-model_name=os.getenv('MODEL_NAME')
-cache_dir=os.getenv('cache_dir')
+DEVICE = os.getenv('DEVICE', 'cpu')
+MODEL_NAME = os.getenv('MODEL_NAME')
+CACHE_DIR = os.getenv('cache_dir')
 
 class LoadSeamlessModel:
     def __init__(self):
-        self.device=device
-        self.model_name=model_name
-        self.cache_dir=cache_dir
+        self.device = DEVICE
+        self.model_name = MODEL_NAME
+        self.cache_dir = CACHE_DIR
+        self.processor = None
+        self.model = None
 
-    @traceable(run_type="tool", name="model_loading")
-    def _load(self) -> None:
-        """Load model with progress."""
+    @traceable(run_type="tool", name="seamless_model_loading")
+    def load(self): 
+        """Load model and processor with tracing."""
         start_time = time.time()
         
         # Load processor and model
-        self.processor = AutoProcessor.from_pretrained(self.model_name, cache_dir=self.cache_dir, use_fast=False)
-        self.model = SeamlessM4Tv2ForSpeechToText.from_pretrained(self.model_name, cache_dir=self.cache_dir)
-        self.model.to(self.device) 
-        self.loaded = True
+        self.processor = AutoProcessor.from_pretrained(
+            self.model_name, 
+            cache_dir=self.cache_dir, 
+            use_fast=False
+        )
+        self.model = SeamlessM4Tv2ForSpeechToText.from_pretrained(
+            self.model_name, 
+            cache_dir=self.cache_dir
+        )
+        self.model.to(self.device)
         
-        # Calculate loading time
         loading_time = time.time() - start_time
+        metadata={
+            "model_name": self.model_name,
+            "device": self.device,
+            "loading_time_seconds": round(loading_time, 3),
+            "cache_dir": self.cache_dir
+        }
         
-        # Add metadata to current trace
-        current_run = get_current_run_tree()
-        if current_run:
-            current_run.extra = current_run.extra or {}
-            current_run.extra.update({
-                "model_name": self.model_name,
-                "cache_directory": self.cache_dir,
-                "device": self.device,
-                "loading_time_seconds": round(loading_time, 3),
-                "processor_loaded": True,
-                "model_loaded": True,
-                "model_moved_to_device": True
-            })
-        
-        print(f"[Seamless] ✓ Model loaded successfully in {loading_time:.3f}s.")
-        return self.processor , self.model
+        return self.processor, self.model
 
-
+# Usage
+if __name__ == "__main__":
+    loader = LoadSeamlessModel()
+    processor, model = loader.load()

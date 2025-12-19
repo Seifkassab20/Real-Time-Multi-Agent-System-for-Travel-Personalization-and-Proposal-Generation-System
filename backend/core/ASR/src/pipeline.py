@@ -6,7 +6,8 @@ from typing import List
 from backend.core.ASR.src.asr_infrence import transcribe
 from backend.core.ASR.src.llm_engine import LLMEngine
 from backend.core.ASR.src.models import PipelineOutput, TranscriptionSegment
-from backend.core.tracing_config import setup_tracing, get_trace_metadata, is_tracing_enabled, trace_file_operation, trace_cleanup_operation
+from backend.core.ASR.src.preprocess_audio import audio_utils
+from backend.core.tracing_config import get_metadata
 from langsmith import traceable
 
 # Configure logging
@@ -23,20 +24,12 @@ class TranscriptionService:
     """
     @traceable(run_type="tool", name="transcription_service_initialization")
     def __init__(self):
-        """
-        Initialize the TranscriptionService.
-        Loads the LLM correction engine and sets up tracing.
-        """
         initialization_start_time = time.time()
-        
         try:
             logger.info("Initializing TranscriptionService...")
             
             # Collect environment variables for tracing
             env_vars = {
-                "LANGSMITH_TRACING_V2": os.getenv("LANGSMITH_TRACING_V2", "false"),
-                "LANGSMITH_PROJECT": os.getenv("LANGSMITH_PROJECT", "asr-pipeline-tracing"),
-                "LANGSMITH_API_KEY": "***" if os.getenv("LANGSMITH_API_KEY") else None,
                 "DEVICE": os.getenv("DEVICE", "cpu"),
                 "MODEL_NAME": os.getenv("MODEL_NAME", "default"),
                 "CORRECTION_MODEL": os.getenv("CORRECTION_MODEL", "default"),
@@ -45,40 +38,23 @@ class TranscriptionService:
                 "OVERLAP": os.getenv("OVERLAP", "2.0")
             }
             
-            # Set up tracing infrastructure
-            tracing_setup_success = setup_tracing()
-            if tracing_setup_success:
-                logger.info("LangSmith tracing configured successfully")
-            else:
-                logger.info("LangSmith tracing not configured - continuing without tracing")
-            
-            # Initialize LLM correction engine
             self.correction_engine = LLMEngine()
-            
-            # Calculate initialization time
             initialization_time = time.time() - initialization_start_time
-            
-            # Add comprehensive initialization metadata for tracing
-            initialization_metadata = get_trace_metadata(
+            initialization_metadata = get_metadata(
                 "transcription_service_init",
                 environment_variables=env_vars,
-                tracing_setup_successful=tracing_setup_success,
                 correction_engine_initialized=True,
                 initialization_time_seconds=round(initialization_time, 3),
                 initialization_timestamp=time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()),
                 service_status="initialized_successfully"
             )
             
-            if is_tracing_enabled():
-                logger.info(f"TranscriptionService initialization metadata: {initialization_metadata}")
-            
+            logger.info(f"TranscriptionService initialization metadata: {initialization_metadata}")
             logger.info("TranscriptionService initialized successfully.")
             
         except Exception as e:
             initialization_time = time.time() - initialization_start_time
-            
-            # Trace initialization failure
-            error_metadata = get_trace_metadata(
+            error_metadata = get_metadata(
                 "transcription_service_init_error",
                 environment_variables=env_vars,
                 error_type=type(e).__name__,
@@ -92,46 +68,18 @@ class TranscriptionService:
 
     @traceable(run_type="chain", name="asr_pipeline")
     def process_audio(self, audio_path: str) -> PipelineOutput:
-        """
-        Process an audio file: Transcribe -> Filter -> Correct.
-        
-        Args:
-            audio_path (str): Path to the audio file.
-            
-        Returns:
-            PipelineOutput: Structured output containing raw text, corrected text, and segments.
-        """
-        # Get processing start time and file metadata for tracing
         processing_start_time = time.time()
         processing_start_iso = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(processing_start_time))
         
-        # Trace file existence check and get comprehensive metadata
-        file_operation_result = trace_file_operation(
-            audio_path, 
-            "audio_file_validation",
-            expected_file_type="audio",
-            processing_context="asr_pipeline"
-        )
-        
-        if not file_operation_result["file_exists"]:
-            error_msg = f"Audio file not found: {audio_path}"
-            logger.error(error_msg)
-            raise FileNotFoundError(error_msg)
-        
-        # Extract file metadata from tracing result
-        file_size_bytes = file_operation_result["file_size_bytes"]
-        file_size_mb = file_operation_result["file_size_mb"]
-        
-        # Log file operation metadata if tracing is enabled
-        if is_tracing_enabled():
-            logger.info(f"File operation metadata: {file_operation_result}")
+        # Get file size
+        file_size_bytes = os.path.getsize(audio_path)
+        file_size_mb = file_size_bytes / (1024 * 1024)
+        logger.info(f"Audio file: {audio_path}, Size: {file_size_mb:.2f} MB")
 
-        # Calculate audio duration by preprocessing the audio
         try:
-            from ASR.src.preprocess_audio import audio_utils
             audio_processor = audio_utils()
             waveform = audio_processor.preprocess_audio(audio_path)
-            duration_seconds = len(waveform) / 16000  # Sample rate is 16kHz after preprocessing
+            duration_seconds = len(waveform) / 16000  
         except Exception as e:
             logger.warning(f"Could not calculate audio duration: {e}")
             duration_seconds = None
@@ -139,8 +87,7 @@ class TranscriptionService:
         logger.info(f"Processing audio file: {audio_path}")
 
         try:
-            # Add comprehensive pipeline metadata for tracing
-            pipeline_metadata = get_trace_metadata(
+            pipeline_metadata = get_metadata(
                 "asr_pipeline",
                 audio_file=audio_path,
                 file_size_mb=round(file_size_mb, 2),
@@ -149,25 +96,21 @@ class TranscriptionService:
                 target_language="arb"  # Default target language
             )
             
-            # Log metadata if tracing is enabled
-            if is_tracing_enabled():
-                logger.info(f"Pipeline tracing metadata: {pipeline_metadata}")
+            logger.info(f"Pipeline tracing metadata: {pipeline_metadata}")
 
             raw_text, chunk_results = transcribe(audio_path)
             logger.debug(f"Raw transcription completed. Length: {len(raw_text)}")
             
-            # Update chunk count in metadata now that we have the results
             chunk_count = len(chunk_results) if chunk_results else 0
             
             segments: List[TranscriptionSegment] = []
             corrected_text_parts: List[str] = []
             corrected_segments=[]
-            # 2. Process chunks
+            
             for i, chunk in enumerate(chunk_results):
                 text = chunk.get('text', '').strip()
                 confidence = chunk.get('avg_confidence', 0.0)
 
-                # Filter low confidence chunks
                 if confidence <= 0.3:
                     logger.warning(f"Chunk {i} skipped due to low confidence: {confidence:.2f}")
                     continue
@@ -175,14 +118,12 @@ class TranscriptionService:
                 if not text:
                     continue
 
-                # 3. LLM Correction
                 try:
                     correction_result = self.correction_engine.correct_text(text, confidence)
                     corrected_text = correction_result.get('corrected_text', '')
                     needs_review = correction_result.get('requires_confirmation', False)
                 except Exception as e:
                     logger.error(f"Error during LLM correction for chunk {i}: {e}")
-                    # Fallback to raw text if correction fails
                     corrected_text = text
                     needs_review = True
 
@@ -198,9 +139,6 @@ class TranscriptionService:
                 if corrected_text:
                     corrected_segments.append(segment)
 
-
-
-            # Calculate processing duration
             processing_end_time = time.time()
             processing_duration = processing_end_time - processing_start_time
 
@@ -217,26 +155,11 @@ class TranscriptionService:
                 }
             )
             
-            # Perform final cleanup operations with tracing
-            final_cleanup_result = trace_cleanup_operation(
-                "general_memory",
-                {
-                    "cleanup_trigger": "pipeline_completion",
-                    "processed_chunks": chunk_count,
-                    "processing_duration": processing_duration
-                },
-                processing_context="asr_pipeline_completion"
-            )
-            
-            if is_tracing_enabled():
-                logger.info(f"Final cleanup metadata: {final_cleanup_result}")
-            
             logger.info("Audio processing completed successfully.")
             return corrected_segments
 
         except FileNotFoundError as e:
-            # Trace FileNotFoundError with file path details
-            error_metadata = get_trace_metadata(
+            error_metadata = get_metadata(
                 "file_error",
                 error_type="FileNotFoundError",
                 file_path=audio_path,
@@ -245,8 +168,7 @@ class TranscriptionService:
             logger.error(f"File not found error with metadata: {error_metadata}")
             raise
         except Exception as e:
-            # Trace general exceptions with error context and recovery actions
-            error_metadata = get_trace_metadata(
+            error_metadata = get_metadata(
                 "pipeline_error",
                 error_type=type(e).__name__,
                 file_path=audio_path,
@@ -255,4 +177,3 @@ class TranscriptionService:
             )
             logger.error(f"Pipeline error with metadata: {error_metadata}")
             raise
-

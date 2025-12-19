@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 import logging
 import os
 from langsmith import traceable
-from backend.core.tracing_config import get_trace_metadata, is_tracing_enabled, trace_external_service_connection
+from backend.core.tracing_config import get_metadata,trace_service_health
 import time
 
 load_dotenv()
@@ -35,17 +35,10 @@ class LLMEngine:
         self.correction_model = str(os.getenv("CORRECTION_MODEL"))
         print(self.correction_model)
         
-        # Trace Ollama service connection and availability
-        ollama_service_check = trace_external_service_connection(
+        ollama_service_check = trace_service_health(
             "ollama",
-            self.host,
-            expected_model=self.correction_model,
-            api_key_configured=bool(self.api_key and self.api_key != "None"),
-            initialization_context="llm_engine_init"
+            self.host
         )
-        
-        if is_tracing_enabled():
-            logger.info(f"Ollama service check metadata: {ollama_service_check}")
         
         try:
             # Initialize Ollama client
@@ -70,7 +63,7 @@ class LLMEngine:
         initialization_time = time.time() - initialization_start_time
         
         # Add comprehensive initialization metadata for tracing
-        initialization_metadata = get_trace_metadata(
+        initialization_metadata = get_metadata(
             "llm_engine_init",
             ollama_host=self.host,
             correction_model=self.correction_model,
@@ -82,11 +75,7 @@ class LLMEngine:
             ollama_connection_time_ms=ollama_service_check.get("response_time_ms", 0),
             initialization_time_seconds=round(initialization_time, 3),
             initialization_timestamp=time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()),
-            engine_status="initialized_successfully"
-        )
-        
-        if is_tracing_enabled():
-            logger.info(f"LLMEngine initialization metadata: {initialization_metadata}")
+            engine_status="initialized_successfully")
 
     @traceable(run_type="tool", name="llm_error_handling")
     def _handle_llm_error(self, error: Exception, context: dict, fallback_text: str = "") -> dict:
