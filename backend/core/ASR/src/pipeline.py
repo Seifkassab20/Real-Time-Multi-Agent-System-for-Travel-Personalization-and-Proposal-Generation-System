@@ -106,7 +106,7 @@ class TranscriptionService:
             segments: List[TranscriptionSegment] = []
             corrected_text_parts: List[str] = []
             corrected_segments=[]
-            
+            # 2. Process chunks
             for i, chunk in enumerate(chunk_results):
                 text = chunk.get('text', '').strip()
                 confidence = chunk.get('avg_confidence', 0.0)
@@ -138,6 +138,8 @@ class TranscriptionService:
                 
                 if corrected_text:
                     corrected_segments.append(segment)
+
+
 
             processing_end_time = time.time()
             processing_duration = processing_end_time - processing_start_time
