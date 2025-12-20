@@ -2,14 +2,20 @@ import logging
 import os
 import sys
 import time
-from typing import List
-from backend.core.ASR.src.asr_infrence import transcribe
+from typing import List, Optional, Callable, AsyncGenerator
+from backend.core.ASR.src.asr_infrence import transcribe, process_audio_chunk, ASR
 from backend.core.ASR.src.llm_engine import LLMEngine
 from backend.core.ASR.src.models import PipelineOutput, TranscriptionSegment
 from backend.core.ASR.src.preprocess_audio import audio_utils
 from backend.core.tracing_config import get_metadata
 from langsmith import traceable
-
+from backend.database.repostries.calls_repo import calls_repository
+from backend.database.models.calls import Calls
+from backend.database.db import NeonDatabase
+from datetime import datetime
+import numpy as np
+import torch
+from collections import deque
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -20,13 +26,29 @@ logger = logging.getLogger("ASR_Pipeline")
 class TranscriptionService:
     """
     Service for handling audio transcription and post-correction.
-    Designed to be used as a component in a larger real-time system.
+    Designed for real-time streaming audio processing.
     """
     @traceable(run_type="tool", name="transcription_service_initialization")
-    def __init__(self):
+    def __init__(self, 
+                 chunk_duration: float = 2.0,  # seconds
+                 overlap_duration: float = 0.5,  # seconds
+                 min_confidence: float = 0.3,
+                 buffer_size: int = 10):
         initialization_start_time = time.time()
         try:
-            logger.info("Initializing TranscriptionService...")
+            logger.info("Initializing Real-Time TranscriptionService...")
+            
+            # Real-time processing parameters
+            self.chunk_duration = chunk_duration
+            self.overlap_duration = overlap_duration
+            self.min_confidence = min_confidence
+            self.sample_rate = 16000
+            self.chunk_samples = int(chunk_duration * self.sample_rate)
+            self.overlap_samples = int(overlap_duration * self.sample_rate)
+            
+            # Audio buffer for streaming
+            self.audio_buffer = deque(maxlen=buffer_size * self.chunk_samples)
+            self.is_processing = False
             
             # Collect environment variables for tracing
             env_vars = {
@@ -34,19 +56,26 @@ class TranscriptionService:
                 "MODEL_NAME": os.getenv("MODEL_NAME", "default"),
                 "CORRECTION_MODEL": os.getenv("CORRECTION_MODEL", "default"),
                 "OLLAMA_HOST": os.getenv("OLLAMA_HOST", "http://localhost:11434"),
-                "CHUNK_LENGTH": os.getenv("CHUNK_LENGTH", "20.0"),
-                "OVERLAP": os.getenv("OVERLAP", "2.0")
+                "CHUNK_LENGTH": str(chunk_duration),
+                "OVERLAP": str(overlap_duration),
+                "REAL_TIME_MODE": "enabled"
             }
             
             self.correction_engine = LLMEngine()
-            initialization_time = time.time() - initialization_start_time
+            self.calls_repo = calls_repository()
+            self.audio_processor = audio_utils()
+            
+            # Initialize call session
+            self.current_call_id = None
+            self.call_start_time = None
+            self.processed_segments = []
+            
             initialization_metadata = get_metadata(
                 "transcription_service_init",
                 environment_variables=env_vars,
                 correction_engine_initialized=True,
-                initialization_time_seconds=round(initialization_time, 3),
-                initialization_timestamp=time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()),
-                service_status="initialized_successfully"
+                service_status="initialized_successfully",
+                mode="real_time_streaming"
             )
             
             logger.info(f"TranscriptionService initialization metadata: {initialization_metadata}")
@@ -66,116 +95,95 @@ class TranscriptionService:
             logger.error(f"Failed to initialize TranscriptionService with metadata: {error_metadata}")
             raise
 
-    @traceable(run_type="chain", name="asr_pipeline")
-    def process_audio(self, audio_path: str) -> PipelineOutput:
-        processing_start_time = time.time()
-        processing_start_iso = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(processing_start_time))
-        
-        # Get file size
-        file_size_bytes = os.path.getsize(audio_path)
-        file_size_mb = file_size_bytes / (1024 * 1024)
-        logger.info(f"Audio file: {audio_path}, Size: {file_size_mb:.2f} MB")
+    @traceable(run_type="tool", name="add_call_record")
+    async def add_call_record(self, call_data):
+        """
+        Adds a call record to the database.
+        """
+        async with NeonDatabase().get_session() as session:
+            new_call = await self.calls_repo.create(session, Calls(**call_data))
+        logger.info(f"New call record added with ID: {new_call.call_id}")
+        return  new_call.call_id
 
-        try:
-            audio_processor = audio_utils()
-            waveform = audio_processor.preprocess_audio(audio_path)
-            duration_seconds = len(waveform) / 16000  
-        except Exception as e:
-            logger.warning(f"Could not calculate audio duration: {e}")
-            duration_seconds = None
+    @traceable(run_type="tool", name="asr_streaming")
+    async def stream_audio(self, audio_path: str, on_segment: Optional[Callable[[TranscriptionSegment], None]] = None) -> AsyncGenerator[tuple, None]:
+        """
+        Stream the audio file in real time by chunking and processing each chunk
+        sequentially. Yields (TranscriptionSegment, call_id) for the first segment,
+        then (TranscriptionSegment, None) for the rest.
+        """
+        started_at = datetime.utcnow()
+        logger.info(f"Streaming audio file: {audio_path}")
 
-        logger.info(f"Processing audio file: {audio_path}")
+        # Pre-create call record to get call_id
+        call_id = await self.add_call_record({
+            "call_context": [],
+            "started_at": started_at,
+            "ended_at": None,
+        })
 
-        try:
-            pipeline_metadata = get_metadata(
-                "asr_pipeline",
-                audio_file=audio_path,
-                file_size_mb=round(file_size_mb, 2),
-                duration_seconds=round(duration_seconds, 2) if duration_seconds else None,
-                processing_start_time=processing_start_iso,
-                target_language="arb"  # Default target language
-            )
-            
-            logger.info(f"Pipeline tracing metadata: {pipeline_metadata}")
+        utils = audio_utils()
+        waveform = utils.preprocess_audio(audio_path)
+        sr = 16000
+        chunks = utils.chunk_audio(torch.tensor(waveform), sr=sr)
 
-            raw_text, chunk_results = transcribe(audio_path)
-            logger.debug(f"Raw transcription completed. Length: {len(raw_text)}")
-            
-            chunk_count = len(chunk_results) if chunk_results else 0
-            
-            segments: List[TranscriptionSegment] = []
-            corrected_text_parts: List[str] = []
-            corrected_segments=[]
-            # 2. Process chunks
-            for i, chunk in enumerate(chunk_results):
-                text = chunk.get('text', '').strip()
-                confidence = chunk.get('avg_confidence', 0.0)
+        device = torch.device(ASR.device)
+        processed_segments: List[TranscriptionSegment] = []
 
-                if confidence <= 0.3:
-                    logger.warning(f"Chunk {i} skipped due to low confidence: {confidence:.2f}")
-                    continue
-                
-                if not text:
+        for i, chunk in enumerate(chunks, start=1):
+            try:
+                result = process_audio_chunk(
+                    chunk=chunk,
+                    chunk_index=i,
+                    total_chunks=len(chunks),
+                    sr=sr,
+                    tgt_lang="arb",
+                    device=device,
+                )
+
+                text = result.get("text", "").strip()
+                confidence = result.get("avg_confidence", 0.0)
+                if not text or confidence <= 0.3:
                     continue
 
                 try:
-                    correction_result = self.correction_engine.correct_text(text, confidence)
-                    corrected_text = correction_result.get('corrected_text', '')
-                    needs_review = correction_result.get('requires_confirmation', False)
-                except Exception as e:
-                    logger.error(f"Error during LLM correction for chunk {i}: {e}")
+                    correction = self.correction_engine.correct_text(text, confidence)
+                    corrected_text = correction.get("corrected_text", text)
+                    needs_review = correction.get("requires_confirmation", False)
+                except Exception as llm_err:
+                    logger.warning(f"LLM correction failed for chunk {i}: {llm_err}")
                     corrected_text = text
                     needs_review = True
 
-                # Create segment
                 segment = TranscriptionSegment(
                     raw_text=text,
                     corrected_text=corrected_text,
                     confidence=confidence,
-                    needs_review=needs_review
+                    needs_review=needs_review,
                 )
-                print('SEGMENT ', segment)
-                
-                if corrected_text:
-                    corrected_segments.append(segment)
 
+                processed_segments.append(segment)
+                if on_segment:
+                    try:
+                        on_segment(segment)
+                    except Exception as cb_err:
+                        logger.warning(f"Segment callback error: {cb_err}")
+                if i == 1:
+                    yield segment, call_id
+                else:
+                    yield segment, None
 
+            except Exception as e:
+                logger.error(f"Streaming error on chunk {i}: {e}")
+                continue
 
-            processing_end_time = time.time()
-            processing_duration = processing_end_time - processing_start_time
-
-            output = PipelineOutput(
-                full_raw_text=raw_text,
-                full_corrected_text=" ".join([segment.corrected_text for segment in corrected_segments]),
-                segments=corrected_segments,
-                metadata={
-                    "audio_path": audio_path,
-                    "chunk_count": chunk_count,
-                    "duration_seconds": duration_seconds,
-                    "processing_duration": round(processing_duration, 2),
-                    "file_size_mb": round(file_size_mb, 2)
-                }
-            )
-            
-            logger.info("Audio processing completed successfully.")
-            return corrected_segments
-
-        except FileNotFoundError as e:
-            error_metadata = get_metadata(
-                "file_error",
-                error_type="FileNotFoundError",
-                file_path=audio_path,
-                error_message=str(e)
-            )
-            logger.error(f"File not found error with metadata: {error_metadata}")
-            raise
-        except Exception as e:
-            error_metadata = get_metadata(
-                "pipeline_error",
-                error_type=type(e).__name__,
-                file_path=audio_path,
-                error_message=str(e),
-                recovery_action="Pipeline execution terminated"
-            )
-            logger.error(f"Pipeline error with metadata: {error_metadata}")
-            raise
+        # Persist session (update call record)
+        ended_at = datetime.utcnow()
+        try:
+            await self.add_call_record({
+                "call_context": [seg.__dict__ for seg in processed_segments],
+                "started_at": started_at,
+                "ended_at": ended_at,
+            })
+        except Exception as db_err:
+            logger.warning(f"Failed to persist streaming session: {db_err}")
