@@ -1,5 +1,6 @@
 import sys
 import os
+import json
 from dotenv import load_dotenv
 load_dotenv()
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -11,7 +12,7 @@ sys.path.append(os.path.join(current_dir, "../../../"))
 
 from backend.core.llm import OllamaCloudLLM
 from backend.core.profile_agent.prompt import profile_agent_prompt
-from backend.core.profile_agent.models import CustomerProfile, profile_agent_response
+from backend.core.profile_agent.models import profile_agent_response
 
 
 messages = [
@@ -20,8 +21,9 @@ messages = [
 
 
 class ProfileAgent:
-    self.llm = OllamaCloudLLM()
-    self.system_prompt = profile_agent_prompt
+    def __init__(self):
+        self.llm = OllamaCloudLLM()
+        self.system_prompt = profile_agent_prompt
 
 
     async def invoke(self, user_schema: dict) -> dict:
@@ -41,8 +43,8 @@ class ProfileAgent:
             try:
                 return response.model_dump_json()
                 
-            except json.JSONDecodeError as e:
-                print("DEBUG - Failed to parse content as JSON:", content[:100])
+            except json.JSONDecodeError:
+                print("DEBUG - Failed to parse response as JSON")
                 return {}
 
             
