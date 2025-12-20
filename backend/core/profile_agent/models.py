@@ -44,5 +44,9 @@ class CustomerProfile(BaseModel):
         return v.upper()
 
 
+class question_response(BaseModel):
+    question: str
+    fields_filling: List[str]
+
 class profile_agent_response(BaseModel):
-    questions: List[str]
+    questions: List[question_response]

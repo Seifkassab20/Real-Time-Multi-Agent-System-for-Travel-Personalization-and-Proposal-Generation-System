@@ -14,14 +14,41 @@ from backend.core.profile_agent.prompt import profile_agent_prompt
 from backend.core.profile_agent.models import CustomerProfile, profile_agent_response
 
 
-llm = OllamaCloudLLM()
-
 messages = [
-    {"role": "user", "content": "Hello, how are you?"}
+    {"role": "system", "content": profile_agent_prompt}
 ]
 
 
-response = llm.chat_structured(messages, profile_agent_response)
-print(response)
+class ProfileAgent:
+    self.llm = OllamaCloudLLM()
+    self.system_prompt = profile_agent_prompt
+
+
+    async def invoke(self, user_schema: dict) -> dict:
+
+        messages = [
+            {"role": "system", "content": self.system_prompt},
+            {"role": "user", "content": f"Start generating the questions from this schema:\n'{user_schema}'"}
+        ]
+
+        try:
+            # Call the Ollama LLM
+            response = self.llm.chatchat_structured(messages, profile_agent_response,temperature=0.0, max_tokens=500)
+
+            # Debug the response structure
+            print("DEBUG - Response:", response)
+                
+            try:
+                return response.model_dump_json()
+                
+            except json.JSONDecodeError as e:
+                print("DEBUG - Failed to parse content as JSON:", content[:100])
+                return {}
+
+            
+        except Exception as e:
+            print(f"Error in profile questions generation: {e}")
+            return {}
+
 
 
