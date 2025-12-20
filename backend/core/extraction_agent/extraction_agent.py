@@ -5,11 +5,13 @@ from pydantic import ValidationError
 from backend.core.llm import llm_cloud_model
 from backend.core.extraction_agent.models import TranscriptSegment , Agent_output
 from datetime import date
+from backend.core.tracing_config import get_metadata
+from langsmith import traceable
 
 
 today = date.today().isoformat()
 class ExtractionAgent:
-
+    @traceable(run_type="chain", name="extraction_agent")
     def __init__(self):
         self.llm = llm_cloud_model
         self.system_prompt = f"""
@@ -114,8 +116,9 @@ class ExtractionAgent:
 
         Precision is more important than completeness.
         Never hallucinate information.
-                """
-    
+        """
+        
+    @traceable(run_type="chain", name="extraction_agent")
     async def invoke(self, segment: TranscriptSegment) -> dict:
 
         messages = [
