@@ -19,10 +19,6 @@ from backend.database.models.customer_profile import CustomerProfileDB
 from backend.database.repostries.customer_profile_repo import CustomerProfileRepository
 
 
-messages = [
-    {"role": "system", "content": profile_agent_prompt}
-]
-
 
 class ProfileAgent:
     def __init__(self):
@@ -53,7 +49,7 @@ class ProfileAgent:
                 "end_date": str(user_profile.end_date) if user_profile.end_date else None,
                 "adults": user_profile.adults,
                 "children": user_profile.children,
-                "ages": user_profile.ages,
+                "children_ages": user_profile.children_ages,
                 "cities": user_profile.cities,
                 "specific_sites": user_profile.specific_sites,
                 "interests": user_profile.interests,
@@ -65,23 +61,24 @@ class ProfileAgent:
 
         messages = [
             {"role": "system", "content": self.system_prompt},
-            {"role": "user", "content": f"Start generating the questions from this user profile:\n'{profile_data}'"}
+            {"role": "user", "content": f"Start generating the questions from this user profile:\n{profile_data}"}
         ]
 
+        # Debug: print the profile data being sent
+        print("DEBUG - Profile data:", profile_data)
+
         try:
-            # Call the Ollama LLM
-            response = self.llm.chatchat_structured(messages, profile_agent_response,temperature=0.0, max_tokens=500)
+            # Call the Ollama LLM with higher max_tokens for complex schema output
+            response = self.llm.chat_structured(
+                messages, 
+                profile_agent_response,
+                temperature=0.0, 
+                max_tokens=2000  # Increased from 500
+            )
 
             # Debug the response structure
             print("DEBUG - Response:", response)
-                
-            try:
-                return response.model_dump_json()
-                
-            except json.JSONDecodeError as e:
-                print("DEBUG - Failed to parse content as JSON:", content[:100])
-                return {}
-
+            return response.model_dump_json()
             
         except Exception as e:
             print(f"Error in profile questions generation: {e}")

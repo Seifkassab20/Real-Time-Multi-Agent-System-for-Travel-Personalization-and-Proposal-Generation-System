@@ -27,7 +27,7 @@ class CustomerProfileDB(Base):
     children = Column(Integer, nullable=True)
     
 
-    ages = Column(JSONB, nullable=True)
+    children_ages = Column(JSONB, nullable=True)
 
 
     cities = Column(JSONB, nullable=True)
