@@ -1,9 +1,45 @@
 import os
 import time
 import re
+import json
 import pandas as pd
 from datetime import datetime, timedelta
 from playwright.sync_api import sync_playwright
+import logging
+
+# ========================================================
+# LOGGING SETUP (Structured for MLOps)
+# ========================================================
+class JsonFormatter(logging.Formatter):
+    def format(self, record):
+        log_record = {
+            "timestamp": self.formatTime(record, self.datefmt),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+        }
+
+        # Attach structured metadata if provided
+        if hasattr(record, "extra_data"):
+            log_record.update(record.extra_data)
+
+        if record.exc_info:
+            log_record["exception"] = self.formatException(record.exc_info)
+
+        return json.dumps(log_record)
+
+
+handler_console = logging.StreamHandler()
+handler_file = logging.FileHandler("scraper.log", encoding="utf-8")
+
+formatter = JsonFormatter()
+handler_console.setFormatter(formatter)
+handler_file.setFormatter(formatter)
+
+logger = logging.getLogger("booking_scraper")
+logger.setLevel(logging.INFO)
+logger.addHandler(handler_console)
+logger.addHandler(handler_file)
 
 # ========================================================
 # CONFIG
@@ -11,20 +47,17 @@ from playwright.sync_api import sync_playwright
 CITIES = ["Cairo", "Giza"]
 file_path = "hotels_latest.xlsx"
 
-# Dates
 today = datetime.today()
 check_in = (today + timedelta(days=1)).strftime("%Y-%m-%d")
 check_out = (today + timedelta(days=4)).strftime("%Y-%m-%d")
 
-# Guests
 num_adults = 2
 num_rooms = 2
-children_ages = [3,7]          # e.g. [4, 8]
+children_ages = [3, 7]
 num_children = len(children_ages)
 
-# Filters
-HOTELS_ONLY = True          # only hotels (no apartments / hostels)
-FAMILY_ROOMS_ONLY = True   # enable only if needed
+HOTELS_ONLY = True
+FAMILY_ROOMS_ONLY = True
 
 # =========================================================
 # HELPERS
@@ -37,7 +70,6 @@ def parse_price(price_text):
 
 
 def build_children_params():
-    """Booking.com requires child ages as repeated age= params"""
     if num_children == 0:
         return ""
     return "&" + "&".join([f"age={age}" for age in children_ages])
@@ -47,8 +79,11 @@ def close_all_popups(page):
     for text in ["Accept", "OK", "I agree", "Got it"]:
         try:
             page.locator(f"button:has-text('{text}')").click(timeout=2000)
-        except:
-            pass
+        except Exception:
+            logger.debug(
+                "Popup not found",
+                extra={"extra_data": {"popup_text": text}}
+            )
 
 
 def load_full_results(page):
@@ -91,13 +126,15 @@ def extract_amenities(card, page):
 
     text_blob = ""
 
-    # 1️⃣ Card-level text
     try:
         text_blob += card.inner_text().lower()
-    except:
-        pass
+    except Exception:
+        logger.error(
+            "Failed to read card text",
+            exc_info=True,
+            extra={"extra_data": {"stage": "card_text"}}
+        )
 
-    # 2️⃣ Hotel page fallback
     if not any(amenities.values()):
         try:
             link = card.locator("a").first.get_attribute("href")
@@ -110,14 +147,20 @@ def extract_amenities(card, page):
                         "div[data-testid='most-popular-facilities']"
                     ).inner_text(timeout=4000)
                     text_blob += facilities.lower()
-                except:
-                    pass
+                except Exception:
+                    logger.warning(
+                        "Facilities section missing",
+                        extra={"extra_data": {"hotel_link": link}}
+                    )
 
                 new_page.close()
-        except:
-            pass
+        except Exception:
+            logger.error(
+                "Failed to open hotel page",
+                exc_info=True,
+                extra={"extra_data": {"stage": "amenities_fallback"}}
+            )
 
-    # 3️⃣ Keyword matching
     for amenity, words in keywords.items():
         for w in words:
             if w in text_blob:
@@ -130,7 +173,10 @@ def extract_amenities(card, page):
 # SCRAPE ONE CITY
 # =========================================================
 def scrape_city(page, city):
-    print(f"\n➡ Scraping Booking.com for {city}")
+    logger.info(
+        "Scraping city",
+        extra={"extra_data": {"city": city}}
+    )
 
     children_params = build_children_params()
 
@@ -145,10 +191,8 @@ def scrape_city(page, city):
         f"{children_params}"
     )
 
-    # Optional filters
     if HOTELS_ONLY:
         url += "&nflt=ht_id%3D204"
-
     if FAMILY_ROOMS_ONLY:
         url += "&nflt=hotelfacility%3D28"
 
@@ -160,6 +204,10 @@ def scrape_city(page, city):
 
     cards = get_hotel_cards(page)
     if not cards:
+        logger.warning(
+            "No hotel cards found",
+            extra={"extra_data": {"city": city}}
+        )
         return []
 
     num_nights = (
@@ -174,8 +222,13 @@ def scrape_city(page, city):
 
         try:
             name = card.locator("div[data-testid='title']").inner_text()
-        except:
+        except Exception:
             name = "N/A"
+            logger.error(
+                "Hotel name missing",
+                exc_info=True,
+                extra={"extra_data": {"city": city, "index": i}}
+            )
 
         price_raw = None
         for sel in [
@@ -185,30 +238,40 @@ def scrape_city(page, city):
             try:
                 price_raw = card.locator(sel).inner_text()
                 break
-            except:
+            except Exception:
                 pass
 
         price_numeric = parse_price(price_raw)
+        if price_numeric is None:
+            logger.warning(
+                "Price missing",
+                extra={"extra_data": {"hotel": name, "city": city}}
+            )
+
         total_price = price_numeric * num_nights if price_numeric else None
 
         try:
             rating = card.locator("div[data-testid='review-score']").inner_text()
-        except:
+        except Exception:
             rating = None
+            logger.warning(
+                "Rating missing",
+                extra={"extra_data": {"hotel": name}}
+            )
 
         try:
             location = card.locator("span[data-testid='address']").inner_text()
-        except:
+        except Exception:
             location = None
 
         try:
             image = card.locator("img").get_attribute("src")
-        except:
+        except Exception:
             image = None
 
         try:
             link = card.locator("a").first.get_attribute("href")
-        except:
+        except Exception:
             link = None
 
         amenities = extract_amenities(card, page)
@@ -250,7 +313,9 @@ def main():
                 "--disable-dev-shm-usage"
             ]
         )
-        page = browser.new_page()
+        context = browser.new_context()
+        page = context.new_page()
+
 
         for city in CITIES:
             final_data.extend(scrape_city(page, city))
@@ -260,7 +325,16 @@ def main():
     df = pd.DataFrame(final_data)
     df.to_excel(output_path, index=False)
 
-    print(f"\n✅ DONE — Saved {len(df)} hotels to {output_path}")
+    logger.info(
+        "Scraping completed",
+        extra={
+            "extra_data": {
+                "hotels_count": len(df),
+                "output_path": output_path
+            }
+        }
+    )
+
 
 if __name__ == "__main__":
     main()
