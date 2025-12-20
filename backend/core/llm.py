@@ -30,9 +30,20 @@ class OllamaLLM:
 class OllamaCloudLLM:
     def __init__(self, model_name: str = "gpt-oss:20b-cloud"):
         self.model_name = model_name
+        
+        # Load configuration from environment variables
+        api_key = os.getenv('OLLAMA_API_KEY')
+        base_url = os.getenv('OLLAMA_BASE_URL', 'https://ollama.com')
+        
+        if not api_key:
+            raise ValueError(
+                "OLLAMA_API_KEY not found in environment variables. "
+                "Please set it in your .env file or as a system environment variable."
+            )
+        
         self.client = Client(
-            host="https://ollama.com", 
-            headers={"Authorization": f"Bearer {os.getenv('OLLAMA_API_KEY')}"}
+            host=base_url, 
+            headers={"Authorization": f"Bearer {api_key}"}
         )
     
     def chat(self, messages: list[dict], temperature: float = 0.0, max_tokens: int = 500):
