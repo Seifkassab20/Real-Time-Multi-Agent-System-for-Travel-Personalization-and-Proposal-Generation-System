@@ -9,7 +9,10 @@ from backend.core.ASR.src.models import PipelineOutput, TranscriptionSegment
 from backend.core.ASR.src.preprocess_audio import audio_utils
 from backend.core.tracing_config import get_metadata
 from langsmith import traceable
-
+from backend.database.repostries.calls_repo import calls_repository
+from backend.database.models.calls import Calls
+from backend.database.db import NeonDatabase
+from datetime import datetime
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -39,13 +42,12 @@ class TranscriptionService:
             }
             
             self.correction_engine = LLMEngine()
-            initialization_time = time.time() - initialization_start_time
+            self.calls_repo = calls_repository()
+            started_at = datetime.utcnow()
             initialization_metadata = get_metadata(
                 "transcription_service_init",
                 environment_variables=env_vars,
                 correction_engine_initialized=True,
-                initialization_time_seconds=round(initialization_time, 3),
-                initialization_timestamp=time.strftime('%Y-%m-%d %H:%M:%S', time.localtime()),
                 service_status="initialized_successfully"
             )
             
@@ -67,10 +69,9 @@ class TranscriptionService:
             raise
 
     @traceable(run_type="chain", name="asr_pipeline")
-    def process_audio(self, audio_path: str) -> PipelineOutput:
-        processing_start_time = time.time()
-        processing_start_iso = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(processing_start_time))
-        
+    async def process_audio(self, audio_path: str) -> PipelineOutput:
+        started_at = datetime.utcnow()
+
         # Get file size
         file_size_bytes = os.path.getsize(audio_path)
         file_size_mb = file_size_bytes / (1024 * 1024)
@@ -91,8 +92,6 @@ class TranscriptionService:
                 "asr_pipeline",
                 audio_file=audio_path,
                 file_size_mb=round(file_size_mb, 2),
-                duration_seconds=round(duration_seconds, 2) if duration_seconds else None,
-                processing_start_time=processing_start_iso,
                 target_language="arb"  # Default target language
             )
             
@@ -138,11 +137,7 @@ class TranscriptionService:
                 
                 if corrected_text:
                     corrected_segments.append(segment)
-
-
-
-            processing_end_time = time.time()
-            processing_duration = processing_end_time - processing_start_time
+                end_time=datetime.utcnow()
 
             output = PipelineOutput(
                 full_raw_text=raw_text,
@@ -152,12 +147,18 @@ class TranscriptionService:
                     "audio_path": audio_path,
                     "chunk_count": chunk_count,
                     "duration_seconds": duration_seconds,
-                    "processing_duration": round(processing_duration, 2),
+                    "processing_duration": round((end_time - started_at).total_seconds(), 2),
                     "file_size_mb": round(file_size_mb, 2)
                 }
             )
             
             logger.info("Audio processing completed successfully.")
+            ended_at = datetime.utcnow()
+            await self.add_call_record({
+                "call_context": [segment.__dict__ for segment in corrected_segments],
+                "started_at": started_at,
+                "ended_at": ended_at
+            })
             return corrected_segments
 
         except FileNotFoundError as e:
@@ -179,3 +180,12 @@ class TranscriptionService:
             )
             logger.error(f"Pipeline error with metadata: {error_metadata}")
             raise
+    @traceable(run_type="db_operation", name="add_call_record")
+    async def add_call_record(self, call_data):
+        """
+        Adds a call record to the database.
+        """
+        async with NeonDatabase().get_session() as session:
+            new_call = await self.calls_repo.create(session, Calls(**call_data))
+        logger.info(f"New call record added with ID: {new_call.call_id}")
+        return new_call
