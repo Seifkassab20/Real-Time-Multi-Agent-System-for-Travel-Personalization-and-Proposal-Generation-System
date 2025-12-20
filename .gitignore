@@ -9,4 +9,7 @@ extraction_agent/__pycache__
 models_cache
 data
 Project_Data_Flow_Documentation.ipynb
+activity_recommendation_agent.log
+hotel_recommendation_agent.log
+scraper.log
 .kiro
