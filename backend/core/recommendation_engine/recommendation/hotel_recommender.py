@@ -133,7 +133,7 @@ def print_hotel_recommendations(result: dict):
     print("\n" + "=" * 50)
 
 
-hotels_df = pd.read_excel("D:/NU/Semester 7/AIS477 S.T/Project/main/Real-Time-Multi-Agent-System-for-Travel-Personalization-and-Proposal-Generation-System/data/data/hotels_latest.xlsx")
+hotels_df = pd.read_excel("backend/core/recommendation_engine/data/data/hotels_latest.xlsx")
 
 max_price_per_night = (profile["budget"]["total"] * 0.45) / profile["dates"]["days"]
 result = recommend_hotels(profile, hotels_df, max_price_per_night)
