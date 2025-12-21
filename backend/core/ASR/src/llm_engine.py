@@ -7,6 +7,7 @@ import logging
 import os
 from langsmith import traceable
 from backend.core.tracing_config import get_metadata,trace_service_health
+from backend.core.prompts.prompt_loader import PromptLoader
 import time
 
 load_dotenv()
@@ -130,34 +131,8 @@ class LLMEngine:
     @traceable(run_type='prompt', name="prompt_building")
     def _build_prompt(self):
         """Build prompt template with comprehensive tracing metadata"""
-        template_text = """
-        You are an ASR post-correction model specialized in **Egyptian Arabic (Masri)**.
-
-        Input Metadata:
-        - ASR Confidence Score: {confidence_score} (Scale 0.0 to 10.0)
-        - Policy: {policy_instruction}
-
-        Task:
-        - Correct the text while preserving the meaning **and the Egyptian dialect**.
-        - Fix grammar, punctuation, spacing, and word boundaries.
-        - Keep all Egyptian colloquial expressions (e.g., "عايز", "كده", "ماشي").
-        - Do **NOT** convert anything to Modern Standard Arabic (MSA).
-        - Convert any Arabic numerals (e.g., "٢٥") into English digits ("25").
-        - Maintain a consistent conversational flow between the **agent** and the **customer**.
-        - If the conversation contains English words, keep them unchanged (e.g., "airport pickup", "dinner cruise").
-        - Do not rewrite, summarize, or add new information; only correct what is there.
-        -Convert all arabic numerals to english numerals.
-        - If sentence flow is broken, fix it while preserving meaning.
-        - IF no full stop is present, add one at the end of each sentence.
-        - IF no question mark is present, add one at the end of each question.
-        - IF no exclamation mark is present, add one at the end of each exclamation.
-
-        ASR text:
-        \"\"\"{asr_text}\"\"\"
-
-        Return ONLY a JSON object:
-        {format_instructions}
-        """
+        template_text = PromptLoader.load_prompt("correction_model_prompt.yaml")
+        
         
         input_vars = ["asr_text", "confidence_score", "policy_instruction"]
         format_instructions = self.parser.get_format_instructions()
