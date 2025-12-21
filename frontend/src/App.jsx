@@ -20,8 +20,7 @@ const TravelDashboard = () => {
   const [clientNumber, setClientNumber] = useState("");
   const [callDuration, setCallDuration] = useState(0);
   const [transcripts, setTranscripts] = useState([]);
-  // Prefixed with underscore to indicate it's intentionally set but not displayed in UI
-  const [_connectionStatus, setConnectionStatus] = useState('disconnected');
+  const [connectionStatus, setConnectionStatus] = useState('disconnected');
 
   const mediaStreamRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -30,12 +29,14 @@ const TravelDashboard = () => {
 
   // Timer logic for live call
   useEffect(() => {
-    if (!isCallActive) {
-      return;
+    let interval;
+    if (isCallActive) {
+      interval = setInterval(() => {
+        setCallDuration(prev => prev + 1);
+      }, 1000);
+    } else {
+      setCallDuration(0);
     }
-    const interval = setInterval(() => {
-      setCallDuration(prev => prev + 1);
-    }, 1000);
     return () => clearInterval(interval);
   }, [isCallActive]);
 
@@ -100,66 +101,32 @@ const TravelDashboard = () => {
   }, []);
 
   const startAudioStreaming = useCallback((stream) => {
-    let segmentChunks = [];
-    const SEGMENT_DURATION_MS = 10000; // 10 seconds per segment
+    const mediaRecorder = new MediaRecorder(stream, {
+      mimeType: 'audio/webm;codecs=opus'
+    });
+    mediaRecorderRef.current = mediaRecorder;
+    audioChunksRef.current = [];
 
-    const createAndStartRecorder = () => {
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'audio/webm;codecs=opus'
-      });
-      mediaRecorderRef.current = mediaRecorder;
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          segmentChunks.push(event.data);
-        }
-      };
-
-      mediaRecorder.onstop = async () => {
-        // Combine all chunks into a single blob with valid headers
-        if (segmentChunks.length > 0 && websocketRef.current?.readyState === WebSocket.OPEN) {
-          const completeBlob = new Blob(segmentChunks, { type: 'audio/webm;codecs=opus' });
-          segmentChunks = []; // Clear for next segment
-
-          // Convert to base64 and send
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            const base64Audio = reader.result.split(',')[1];
-            websocketRef.current.send(JSON.stringify({
-              type: 'audio_segment',
-              data: base64Audio,
-              mimeType: 'audio/webm;codecs=opus',
-              duration: SEGMENT_DURATION_MS / 1000
-            }));
-            console.log('Sent 20-second audio segment');
-          };
-          reader.readAsDataURL(completeBlob);
-
-          // Store for potential download
-          audioChunksRef.current.push(completeBlob);
-        }
-
-        // Start a new recording if still active
-        if (stream.active && websocketRef.current?.readyState === WebSocket.OPEN) {
-          createAndStartRecorder();
-        }
-      };
-
-      // Collect data frequently for smooth accumulation
-      mediaRecorder.start(1000);
-      console.log('Audio segment recording started');
-
-      // Stop after 20 seconds to create a complete segment
-      setTimeout(() => {
-        if (mediaRecorder.state === 'recording') {
-          mediaRecorder.stop();
-        }
-      }, SEGMENT_DURATION_MS);
+    mediaRecorder.ondataavailable = async (event) => {
+      if (event.data.size > 0 && websocketRef.current?.readyState === WebSocket.OPEN) {
+        // Convert blob to base64 and send
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64Audio = reader.result.split(',')[1];
+          websocketRef.current.send(JSON.stringify({
+            type: 'audio_chunk',
+            data: base64Audio,
+            mimeType: 'audio/webm;codecs=opus'
+          }));
+        };
+        reader.readAsDataURL(event.data);
+        audioChunksRef.current.push(event.data);
+      }
     };
 
-    // Start the first recording
-    createAndStartRecorder();
-    console.log('Audio streaming started (20-second segments)');
+    // Send audio chunks every 1 second
+    mediaRecorder.start(1000);
+    console.log('Audio streaming started');
   }, []);
 
   const handleToggleCall = async () => {
@@ -214,7 +181,6 @@ const TravelDashboard = () => {
         // Start streaming audio
         startAudioStreaming(stream);
 
-        setCallDuration(0); // Reset call duration
         setIsCallActive(true);
         setTranscripts([]); // Clear previous transcripts
       } catch (err) {

@@ -116,78 +116,68 @@ async def websocket_endpoint(websocket: WebSocket):
                     "message": f"Call started with {client_info['name']}"
                 })
             
-            # Handle complete 20-second audio segments from frontend
-            elif message.get("type") == "audio_segment":
+            # Handle audio chunks from frontend
+            elif message.get("type") == "audio_chunk":
                 audio_data = message.get("data")
-                duration = message.get("duration", 20)
+                mime_type = message.get("mimeType", "audio/webm;codecs=opus")
                 
                 if audio_data:
-                    print(f"Received {duration}s audio segment")
-                    
                     # Decode base64 audio data
                     audio_bytes = base64.b64decode(audio_data)
+                    audio_buffer.append(audio_bytes)
                     
-                    # Save WebM file
-                    temp_webm_path = os.path.join(temp_dir, f"segment_{segment_count}.webm")
-                    temp_wav_path = os.path.join(temp_dir, f"segment_{segment_count}.wav")
-                    
-                    with open(temp_webm_path, 'wb') as f:
-                        f.write(audio_bytes)
-                    
-                    # Convert WebM to WAV for ASR processing
-                    if not convert_webm_to_wav(temp_webm_path, temp_wav_path):
-                        print(f"Failed to convert audio segment {segment_count}")
-                        await websocket.send_json({
-                            "type": "error",
-                            "message": "Audio conversion failed. Please ensure ffmpeg is installed."
-                        })
-                        # Clean up
-                        if os.path.exists(temp_webm_path):
-                            os.remove(temp_webm_path)
-                        continue
-                    
-                    # Process the converted WAV audio through ASR
-                    try:
-                        async for asr_segment, seg_call_id in asr_service.stream_audio(temp_wav_path):
-                            segment_count += 1
-                            
-                            await websocket.send_json({
-                                "type": "transcript",
-                                "text": asr_segment.corrected_text,
-                                "segment": segment_count
-                            })
+                    # Process audio when we have enough data (e.g., every 3 chunks = 3 seconds)
+                    if len(audio_buffer) >= 3:
+                        # Combine audio chunks
+                        combined_audio = b''.join(audio_buffer)
+                        audio_buffer = []  # Clear buffer
+                        
+                        # Save to temporary file for processing
+                        temp_audio_path = os.path.join(temp_dir, f"chunk_{segment_count}.webm")
+                        with open(temp_audio_path, 'wb') as f:
+                            f.write(combined_audio)
+                        
+                        # Process the audio through ASR
+                        try:
+                            async for asr_segment, seg_call_id in asr_service.stream_audio(temp_audio_path):
+                                segment_count += 1
+                                
+                                await websocket.send_json({
+                                    "type": "transcript",
+                                    "text": asr_segment.corrected_text,
+                                    "segment": segment_count
+                                })
 
-                            # 2. Extract
-                            transcript_obj = TranscriptSegment(
-                                segment_id=str(uuid.uuid4()),
-                                timestamp=datetime.utcnow(),
-                                speaker="customer",
-                                text=asr_segment.corrected_text
-                            )
-                            
-                            try:
-                                extraction_result = await extraction_agent.invoke(transcript_obj, segment_count, call_id)
-                  
-                                if isinstance(extraction_result, tuple):
-                                    extraction_data = extraction_result[0]
-                                else:
-                                    extraction_data = extraction_result
-                                    
-                                extraction = Agent_output(**extraction_data)
-                            except Exception as e:
-                                print(f"Extraction error: {e}")
-                                continue
-                    except Exception as e:
-                        print(f"ASR Error: {e}")
-                        await websocket.send_json({
-                            "type": "error",
-                            "message": f"Transcription error: {str(e)}"
-                        })
-                    finally:
-                        # Clean up temp files
-                        for temp_file in [temp_webm_path, temp_wav_path]:
-                            if os.path.exists(temp_file):
-                                os.remove(temp_file)
+                                # 2. Extract
+                                transcript_obj = TranscriptSegment(
+                                    segment_id=str(uuid.uuid4()),
+                                    timestamp=datetime.utcnow(),
+                                    speaker="customer",
+                                    text=asr_segment.corrected_text
+                                )
+                                
+                                try:
+                                    extraction_result = await extraction_agent.invoke(transcript_obj, segment_count, call_id)
+                      
+                                    if isinstance(extraction_result, tuple):
+                                        extraction_data = extraction_result[0]
+                                    else:
+                                        extraction_data = extraction_result
+                                        
+                                    extraction = Agent_output(**extraction_data)
+                                except Exception as e:
+                                    print(f"Extraction error: {e}")
+                                    continue
+                        except Exception as e:
+                            print(f"ASR Error: {e}")
+                            await websocket.send_json({
+                                "type": "error",
+                                "message": f"Transcription error: {str(e)}"
+                            })
+                        finally:
+                            # Clean up temp file
+                            if os.path.exists(temp_audio_path):
+                                os.remove(temp_audio_path)
             
             # Handle legacy process_audio message (file path based)
             elif message.get("type") == "process_audio":
