@@ -68,23 +68,24 @@ async def main():
         print(questions)
 
         print(f"\n{'='*60}")
-        # print(f"[EXTRACTION ID] {extraction_id}")
-        # print(f"[EXTRACTION] {extraction_result}")
+        print(f"[EXTRACTION ID] {extraction_id}")
+        print(f"[EXTRACTION] {extraction_result}")
 
-        # # Merge into accumulated profile
-        # merge_extraction_into_profile(final_profile, extraction_id)
+        # Merge into accumulated profile
+        merge_extraction_into_profile(final_profile, extraction_id)
 
-        # # Build user profile
-        # user_profile = build_user_profile_from_extraction(final_profile)
-        # print(f"\n[USER PROFILE]")
-        # print(user_profile)
+        # Build user profile
+        user_profile = build_user_profile_from_extraction(final_profile)
+        
+        print(f"\n[USER PROFILE]")
+        print(user_profile)
 
-        # # Recommend
-        # recommendation_result = recommend(user_profile)
-        # recommendations.append(recommendation_result)
+        # Recommend
+        recommendation_result = recommend(user_profile)
+        recommendations.append(recommendation_result)
 
-        # print(f"\n[RECOMMENDATION]")
-        # print(recommendation_result)
+        print(f"\n[RECOMMENDATION]")
+        print(recommendation_result)
 
     print("All segments processed!")
     print(f"{'='*60}")
