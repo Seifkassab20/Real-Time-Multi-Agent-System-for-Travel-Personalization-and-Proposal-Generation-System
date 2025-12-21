@@ -17,6 +17,7 @@ from backend.core.profile_agent.models import profile_agent_response
 from backend.database.db import NeonDatabase
 from backend.database.models.customer_profile import CustomerProfileDB
 from backend.database.repostries.customer_profile_repo import CustomerProfileRepository
+from backend.database.repostries.extraction_repo import ExtractionRepository
 
 
 
@@ -25,13 +26,14 @@ class ProfileAgent:
         self.llm = OllamaCloudLLM()
         self.system_prompt = PromptLoader.load_prompt("profile_agent_prompt.yaml")
         self.profile_repo = CustomerProfileRepository()
+        self.extraction_repo = ExtractionRepository()
 
     async def get_profile_by_call_id(self, call_id: str) -> CustomerProfileDB | None:
         """Retrieve a customer profile from the database using call_id."""
         NeonDatabase.init()
         
         async with NeonDatabase.get_session() as session:
-            return await self.profile_repo.get_by_call_id(session, UUID(call_id))
+            return await self.extraction_repo.get_by_id(session, call_id)
 
 
     async def invoke(self, call_id: str) -> dict:
@@ -43,18 +45,17 @@ class ProfileAgent:
         if user_profile:
             # Convert profile to dict for context
             profile_data = {
-                "budget_amount": user_profile.budget_amount,
-                "budget_currency": user_profile.budget_currency,
-                "start_date": str(user_profile.start_date) if user_profile.start_date else None,
-                "end_date": str(user_profile.end_date) if user_profile.end_date else None,
-                "adults": user_profile.adults,
-                "children": user_profile.children,
-                "children_ages": user_profile.children_ages,
-                "cities": user_profile.cities,
-                "specific_sites": user_profile.specific_sites,
-                "interests": user_profile.interests,
-                "accommodation_preference": user_profile.accommodation_preference,
-                "tour_style": user_profile.tour_style,
+                "budget": user_profile.get("budget", 0),
+                "check_in": str(user_profile.get("check_in", "Unknown")),
+                "check_out": str(user_profile.get("check_out", "Unknown")),
+                "adults": user_profile.get("adults", 0),
+                "children": user_profile.get("children", 0),
+                "children_ages": user_profile.get("children_ages", []),
+                'rooms': user_profile.get("rooms", 0),
+                'city': user_profile.get("city", ""),
+                'activities': user_profile.get("activities", []),
+                'preferences': user_profile.get("preferences", []),
+                'keywords': user_profile.get("keywords", []),
             }
         else:
             profile_data = {}

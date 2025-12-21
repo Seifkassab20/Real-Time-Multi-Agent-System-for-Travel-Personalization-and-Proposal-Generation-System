@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from backend.core.ASR.src.pipeline import TranscriptionService
 from backend.core.extraction_agent.extraction_agent import ExtractionAgent
 from backend.core.extraction_agent.models import TranscriptSegment, Agent_output
-# from backend.core.profile_agent.profile_agent import ProfileAgent
+from backend.core.profile_agent.profile_agent import ProfileAgent
 from backend.core.recommendation_engine.recommendation_orchestrator import (
     build_user_profile_from_extraction,
     merge_value,
@@ -20,7 +20,7 @@ audio_path = "/Users/maryamsaad/Documents/ASR/trial.wav"
 
 asr_service = TranscriptionService()
 extraction_agent = ExtractionAgent()
-# profile_agent = ProfileAgent()
+profile_agent = ProfileAgent()
 final_profile = {}
 recommendations = []
 
@@ -62,6 +62,12 @@ async def main():
         # Extract entities
         extraction_result, extraction_id = await extraction_agent.invoke(transcript, segment_count, call_id)
         
+        # User profile completion
+        questions = await profile_agent.invoke(call_id=call_id)
+        print(f"\n[PROFILE AGENT QUESTIONS]")
+        print(questions)
+
+        print(f"\n{'='*60}")
         print(f"[EXTRACTION ID] {extraction_id}")
         print(f"[EXTRACTION] {extraction_result}")
 
@@ -70,6 +76,7 @@ async def main():
 
         # Build user profile
         user_profile = build_user_profile_from_extraction(final_profile)
+        
         print(f"\n[USER PROFILE]")
         print(user_profile)
 
@@ -80,12 +87,6 @@ async def main():
         print(f"\n[RECOMMENDATION]")
         print(recommendation_result)
 
-        #User profile completion
-        # questions = await profile_agent.invoke(call_id=call_id)
-        # print(f"\n[PROFILE AGENT QUESTIONS]")
-        # print(questions)
-
-    print(f"\n{'='*60}")
     print("All segments processed!")
     print(f"{'='*60}")
 
