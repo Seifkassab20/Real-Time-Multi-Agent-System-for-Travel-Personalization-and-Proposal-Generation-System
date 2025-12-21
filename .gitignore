@@ -10,6 +10,7 @@ models_cache
 data/*
 !data/**/*.dvc
 .dvc/cache
+dvc_storage/
 Project_Data_Flow_Documentation.ipynb
 activity_recommendation_agent.log
 hotel_recommendation_agent.log
