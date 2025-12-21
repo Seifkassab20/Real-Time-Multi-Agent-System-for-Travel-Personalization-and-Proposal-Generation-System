@@ -16,3 +16,4 @@ activity_recommendation_agent.log
 hotel_recommendation_agent.log
 scraper.log
 .kiro
+.DS_Store
