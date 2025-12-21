@@ -295,10 +295,10 @@ if __name__ == "__main__":
         }
     }
 
-    museums_df = pd.read_excel("data/museums.xlsx")
-    cafes_df = pd.read_excel("data/cafes.xlsx")
-    parks_df = pd.read_excel("data/parks.xlsx")
-    malls_df = pd.read_excel("data/malls.xlsx")
+    museums_df = pd.read_excel("backend/core/recommendation_engine/data/data/museums.xlsx")
+    cafes_df = pd.read_excel("backend/core/recommendation_engine/data/data/cafes.xlsx")
+    parks_df = pd.read_excel("backend/core/recommendation_engine/data/data/parks.xlsx")
+    malls_df = pd.read_excel("backend/core/recommendation_engine/data/data/malls.xlsx")
 
     activities_df = pd.concat(
         [museums_df, cafes_df, parks_df, malls_df],
