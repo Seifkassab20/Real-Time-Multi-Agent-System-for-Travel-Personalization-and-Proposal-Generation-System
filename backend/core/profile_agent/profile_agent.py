@@ -15,10 +15,8 @@ from backend.core.llm import OllamaCloudLLM
 from backend.core.prompts.prompt_loader import PromptLoader
 from backend.core.profile_agent.models import profile_agent_response
 from backend.database.db import NeonDatabase
-from backend.database.models.customer_profile import CustomerProfileDB
-from backend.database.repostries.customer_profile_repo import CustomerProfileRepository
+from backend.database.models.extractions import Extraction
 from backend.database.repostries.extraction_repo import ExtractionRepository
-from backend.database.models.customer_profile import CustomerProfileDB
 
 
 
@@ -26,45 +24,53 @@ class ProfileAgent:
     def __init__(self):
         self.llm = OllamaCloudLLM()
         self.system_prompt = PromptLoader.load_prompt("profile_agent_prompt.yaml")
-        self.profile_repo = CustomerProfileRepository()
         self.extraction_repo = ExtractionRepository()
 
-    async def get_profile_by_call_id(self, call_id: str) -> CustomerProfileDB | None:
-        """Retrieve a customer profile from the database using call_id."""
+    async def get_extraction_by_call_id(self, call_id: str) -> Extraction | None:
+        """Retrieve extraction data from the database using call_id."""
         NeonDatabase.init()
         
         async with NeonDatabase.get_session() as session:
-            # Profiles are linked via extraction_id, which in this system is set to call_id
-            return await self.profile_repo.get_by_call_id(session, call_id)
+            # Convert string call_id to UUID
+            try:
+                call_id_uuid = UUID(call_id)
+            except ValueError:
+                print(f"Invalid call_id format: {call_id}")
+                return None
+            return await self.extraction_repo.get_by_call_id(session, call_id_uuid)
 
 
-    async def invoke(self, call_id: str) -> dict:
-        """Generate profile questions based on the user's existing profile.
+    async def invoke(self, call_id: str) -> tuple:
+        """Generate profile questions based on the user's existing extraction data.
         Args:
             call_id: The extraction/call id for the session.
         Returns:
-            tuple: A tuple of (json_response, profile_id).
+            tuple: A tuple of (json_response, extraction_id).
         """
-        # Fetch the user profile from database
-        user_profile = await self.get_profile_by_call_id(call_id)
+        # Fetch extraction data from database
+        extraction_data = await self.get_extraction_by_call_id(call_id)
 
-        if user_profile:
-            # Convert profile to dict for context
+        if extraction_data:
+            # Convert extraction to dict for context
             profile_data = {
-                "budget": getattr(user_profile, "budget", 0),
-                "check_in": str(getattr(user_profile, "check_in", "Unknown")),
-                "check_out": str(getattr(user_profile, "check_out", "Unknown")),
-                "adults": getattr(user_profile, "adults", 0),
-                "children": getattr(user_profile, "children", 0),
-                "children_ages": getattr(user_profile, "children_ages", []),
-                'rooms': getattr(user_profile, "rooms", 0),
-                'city': getattr(user_profile, "city", ""),
-                'activities': getattr(user_profile, "activities", []),
-                'preferences': getattr(user_profile, "preferences", []),
-                'keywords': getattr(user_profile, "keywords", []),
+                "budget": getattr(extraction_data, "budget", None),
+                "check_in": str(getattr(extraction_data, "check_in", "")) if getattr(extraction_data, "check_in", None) else None,
+                "check_out": str(getattr(extraction_data, "check_out", "")) if getattr(extraction_data, "check_out", None) else None,
+                "adults": getattr(extraction_data, "adults", None),
+                "children": getattr(extraction_data, "children", None),
+                "children_ages": getattr(extraction_data, "children_age", None),
+                "rooms": getattr(extraction_data, "rooms", None),
+                "city": getattr(extraction_data, "city", None),
+                "activities": getattr(extraction_data, "activities", None),
+                "preferences": getattr(extraction_data, "preferences", None),
+                "keywords": getattr(extraction_data, "keywords", None),
             }
+            # Remove None values for cleaner output
+            profile_data = {k: v for k, v in profile_data.items() if v is not None}
+            extraction_id = str(extraction_data.extraction_id)
         else:
             profile_data = {}
+            extraction_id = None
 
         messages = [
             {"role": "system", "content": self.system_prompt},
@@ -82,94 +88,8 @@ class ProfileAgent:
             )
             print("DEBUG - Response:", response)
 
-            # Create-if-missing: if no profile exists, insert regardless of segment
-            if not user_profile:
-                created_profile = await self.add_db(response, call_id)
-                return response.model_dump_json(), str(created_profile.profile_id)
-
-            # Profile exists; return questions with existing profile_id
-            return response.model_dump_json(), str(user_profile.profile_id)
+            # Return the questions and extraction_id (no database write needed)
+            return response.model_dump_json(), extraction_id
         except Exception as e:
             print(f"Error in profile questions generation: {e}")
             return None, None
-
-
-    async def add_db(self, data: dict, call_id):
-        """Add customer profile to database. Expects a dict."""
-        # Only persist supported DB fields; ignore LLM-only keys like 'questions'
-        raw: dict
-        if hasattr(data, "model_dump"):
-            raw = data.model_dump(exclude_none=True)
-        elif hasattr(data, "dict"):
-            raw = data.dict(exclude_none=True)
-        else:
-            raw = dict(data) if isinstance(data, dict) else {}
-
-        allowed_keys = {
-            "check_in", "check_out", "budget", "adults", "children",
-            "children_ages", "specific_sites", "interests",
-            "accommodation_preference", "tour_style",
-        }
-        payload = {k: raw[k] for k in allowed_keys if k in raw}
-
-        # Normalize types
-        from datetime import date as _date
-        for k in ("check_in", "check_out"):
-            v = payload.get(k)
-            if isinstance(v, str) and v:
-                try:
-                    payload[k] = _date.fromisoformat(v)
-                except Exception:
-                    pass
-        for k in ("budget", "adults", "children"):
-            v = payload.get(k)
-            if isinstance(v, str):
-                try:
-                    payload[k] = int(v)
-                except Exception:
-                    pass
-
-        payload['extraction_id'] = call_id
-        async with NeonDatabase().get_session() as session:
-            new_profile = await self.profile_repo.create(session, CustomerProfileDB(**payload))
-            return new_profile
-
-    async def update_db(self, data: dict, profile_id):
-        """Update customer profile in database. Expects a dict and profile_id."""
-        raw: dict
-        if hasattr(data, "model_dump"):
-            raw = data.model_dump(exclude_none=True)
-        elif hasattr(data, "dict"):
-            raw = data.dict(exclude_none=True)
-        else:
-            raw = dict(data) if isinstance(data, dict) else {}
-
-        allowed_keys = {
-            "check_in", "check_out", "budget", "adults", "children",
-            "children_ages", "specific_sites", "interests",
-            "accommodation_preference", "tour_style",
-        }
-        update_data = {k: raw[k] for k in allowed_keys if k in raw}
-
-        # Normalize types
-        from datetime import date as _date
-        for k in ("check_in", "check_out"):
-            v = update_data.get(k)
-            if isinstance(v, str) and v:
-                try:
-                    update_data[k] = _date.fromisoformat(v)
-                except Exception:
-                    pass
-        for k in ("budget", "adults", "children"):
-            v = update_data.get(k)
-            if isinstance(v, str):
-                try:
-                    update_data[k] = int(v)
-                except Exception:
-                    pass
-                    
-        # Skip DB update if there's nothing to persist
-        if not update_data:
-            return None
-        async with NeonDatabase().get_session() as session:
-            await self.profile_repo.update(session, profile_id=profile_id, update_data=update_data)

@@ -36,3 +36,9 @@ class ExtractionRepository:
         stmt = select(Extraction).where(Extraction.extraction_id == extraction_id)
         result = await db.execute(stmt)
         return result.scalar_one_or_none()
+
+
+    async def get_by_call_id(self, db: AsyncSession, call_id: UUID) -> Extraction | None:
+        stmt = select(Extraction).where(Extraction.call_id == call_id)
+        result = await db.execute(stmt)
+        return result.scalar_one_or_none()

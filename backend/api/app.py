@@ -105,6 +105,9 @@ from backend.core.ASR.src.pipeline import TranscriptionService
 from backend.core.extraction_agent.extraction_agent import ExtractionAgent
 from backend.core.extraction_agent.models import TranscriptSegment, Agent_output
 from backend.core.profile_agent.profile_agent import ProfileAgent
+from backend.database.db import NeonDatabase
+from backend.database.models.calls import Calls
+from backend.database.repostries.calls_repo import calls_repository
 from pydantic import BaseModel
 from typing import List, Optional
 
@@ -134,6 +137,7 @@ active_connections = {}
 
 # Initialize profile agent
 profile_agent = ProfileAgent()
+calls_repo = calls_repository()
 
 @app.get("/")
 async def root():
@@ -211,6 +215,7 @@ async def websocket_endpoint(websocket: WebSocket):
     segment_count = 0
     client_info = {}
     call_id = str(uuid.uuid4())
+    extraction_id = None  # Track extraction_id across segments
     audio_buffer = []
     header_chunk = None  # Store the first chunk which contains WebM header
     
@@ -234,6 +239,20 @@ async def websocket_endpoint(websocket: WebSocket):
                 # Reset audio state for new call
                 audio_buffer = []
                 header_chunk = None
+                
+                # Create call record in database so extraction can reference it
+                try:
+                    NeonDatabase.init()
+                    async with NeonDatabase.get_session() as session:
+                        call_record = Calls(
+                            call_id=uuid.UUID(call_id),
+                            call_context=[],
+                            started_at=datetime.utcnow()
+                        )
+                        await calls_repo.create(session, call_record)
+                        print(f"Call record created in database with ID: {call_id}")
+                except Exception as e:
+                    print(f"Error creating call record: {e}")
                 
                 await websocket.send_json({
                     "type": "call_started",
@@ -289,10 +308,15 @@ async def websocket_endpoint(websocket: WebSocket):
                             )
                             
                             try:
-                                extraction_result = await extraction_agent.invoke(transcript_obj, segment_count, call_id)
+                                extraction_result = await extraction_agent.invoke(
+                                    transcript_obj, segment_count, call_id, extraction_id
+                                )
                   
                                 if isinstance(extraction_result, tuple):
                                     extraction_data = extraction_result[0]
+                                    # Capture extraction_id for subsequent segments
+                                    if extraction_result[1]:
+                                        extraction_id = extraction_result[1]
                                 else:
                                     extraction_data = extraction_result
                                     
