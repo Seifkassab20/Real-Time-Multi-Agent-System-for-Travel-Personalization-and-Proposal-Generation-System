@@ -4,13 +4,13 @@ from datetime import datetime, timezone
 from backend.core.ASR.src.pipeline import TranscriptionService
 from backend.core.extraction_agent.extraction_agent import ExtractionAgent
 from backend.core.extraction_agent.models import TranscriptSegment, Agent_output
-from backend.core.profile_agent.profile_agent import ProfileAgent
-from backend.core.recommendation_engine.recommendation_orchestrator import (
-    build_user_profile_from_extraction,
-    merge_value,
-    MERGE_RULES,
-    recommend
-)
+# from backend.core.profile_agent.profile_agent import ProfileAgent
+# from backend.core.recommendation_engine.recommendation_orchestrator import (
+#     build_user_profile_from_extraction,
+#     merge_value,
+#     MERGE_RULES,
+#     recommend
+# )
 
 # ------------------------------------------------------------------
 # Initialization
@@ -20,7 +20,7 @@ audio_path = "/Users/maryamsaad/Documents/ASR/trial.wav"
 
 asr_service = TranscriptionService()
 extraction_agent = ExtractionAgent()
-profile_agent = ProfileAgent()
+# profile_agent = ProfileAgent()
 final_profile = {}
 recommendations = []
 
@@ -65,13 +65,13 @@ async def main():
         print(f"[EXTRACTION ID] {extraction_id}")
         print(f"[EXTRACTION] {extraction_result}")
 
-        # Merge into accumulated profile
-        merge_extraction_into_profile(final_profile, extraction)
+        # # Merge into accumulated profile
+        # merge_extraction_into_profile(final_profile, extraction)
 
-        # Build user profile
-        user_profile = build_user_profile_from_extraction(final_profile)
-        print(f"\n[USER PROFILE]")
-        print(user_profile)
+        # # Build user profile
+        # user_profile = build_user_profile_from_extraction(final_profile)
+        # print(f"\n[USER PROFILE]")
+        # print(user_profile)
 
         # # Recommend
         # recommendation_result = recommend(user_profile)
