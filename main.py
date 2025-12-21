@@ -49,12 +49,6 @@ async def main():
     async for asr_segment, call_id in asr_service.stream_audio(audio_path):
         segment_count += 1
 
-        # Persist a stable call_id across segments
-        if call_id is None and last_call_id is not None:
-            call_id = last_call_id
-        else:
-            last_call_id = call_id
-
         print(f"\n{'='*60}")
         print(f"Processing Segment {segment_count}")
         print(f"{'='*60}")
@@ -68,19 +62,17 @@ async def main():
             text=asr_segment.corrected_text
         )
 
+
         # Extract entities
         extraction_result, extraction_id = await extraction_agent.invoke(
             transcript,
             segment_count,
-            call_id,
             extraction_id=extraction_id if segment_count > 1 else None,
         )
         
         # User profile completion
-        questions, profile_id = await profile_agent.invoke(
-            call_id=call_id,
-            segment_number=segment_count,
-            profile_id=profile_id if segment_count > 1 else None,
+        questions= await profile_agent.invoke(
+            extraction_result
         )
         print(f"\n[PROFILE AGENT QUESTIONS]")
         print(questions)
@@ -90,7 +82,7 @@ async def main():
         print(f"[EXTRACTION] {extraction_result}")
 
         # Merge into accumulated profile
-        merge_extraction_into_profile(final_profile, extraction_id)
+        merge_extraction_into_profile(final_profile, extraction_result)
 
         # Build user profile
         user_profile = build_user_profile_from_extraction(final_profile)

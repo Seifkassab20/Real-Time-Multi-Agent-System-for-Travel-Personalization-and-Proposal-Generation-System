@@ -1,4 +1,5 @@
 import logging
+import uuid
 import os
 import sys
 import time
@@ -10,8 +11,8 @@ from backend.core.ASR.src.preprocess_audio import audio_utils
 from backend.core.tracing_config import get_metadata
 from langsmith import traceable
 from backend.database.models.calls import Calls
-from backend.database.repostries.calls_repo import calls_repository  
-from backend.database.db import NeonDatabase
+# from backend.database.repostries.calls_repo import calls_repository  
+# from backend.database.db import NeonDatabase
 from datetime import datetime
 import numpy as np
 import torch
@@ -62,7 +63,7 @@ class TranscriptionService:
             }
             
             self.correction_engine = LLMEngine()
-            self.calls_repo = calls_repository()
+            # self.calls_repo = calls_repository()
             self.audio_processor = audio_utils()
             
             # Initialize call session
@@ -95,15 +96,15 @@ class TranscriptionService:
             logger.error(f"Failed to initialize TranscriptionService with metadata: {error_metadata}")
             raise
 
-    @traceable(run_type="tool", name="add_call_record")
-    async def add_call_record(self, call_data):
-        """
-        Adds a call record to the database.
-        """
-        async with NeonDatabase().get_session() as session:
-            new_call = await self.calls_repo.create(session, Calls(**call_data))
-        logger.info(f"New call record added with ID: {new_call.call_id}")
-        return  new_call.call_id
+    # @traceable(run_type="tool", name="add_call_record")
+    # async def add_call_record(self, call_data):
+    #     """
+    #     Adds a call record to the database.
+    #     """
+    #     async with NeonDatabase().get_session() as session:
+    #         new_call = await self.calls_repo.create(session, Calls(**call_data))
+    #     logger.info(f"New call record added with ID: {new_call.call_id}")
+    #     return  new_call.call_id
 
     @traceable(run_type="tool", name="asr_streaming")
     async def stream_audio(self, audio_path: str, on_segment: Optional[Callable[[TranscriptionSegment], None]] = None) -> AsyncGenerator[tuple, None]:
@@ -115,12 +116,12 @@ class TranscriptionService:
         started_at = datetime.utcnow()
         logger.info(f"Streaming audio file: {audio_path}")
 
-        # Pre-create call record to get call_id
-        call_id = await self.add_call_record({
-            "call_context": [],
-            "started_at": started_at,
-            "ended_at": None,
-        })
+        # # Pre-create call record to get call_id
+        # call_id = await self.add_call_record({
+        #     "call_context": [],
+        #     "started_at": started_at,
+        #     "ended_at": None,
+        # })
 
         utils = audio_utils()
         waveform = utils.preprocess_audio(audio_path)
@@ -129,6 +130,7 @@ class TranscriptionService:
 
         device = torch.device(ASR.device)
         processed_segments: List[TranscriptionSegment] = []
+        call_id = str(uuid.uuid4())
 
         for i, chunk in enumerate(chunks, start=1):
             try:
@@ -163,11 +165,14 @@ class TranscriptionService:
                 )
 
                 processed_segments.append(segment)
+                # Optional callback for each segment
                 if on_segment:
                     try:
                         on_segment(segment)
                     except Exception as cb_err:
                         logger.warning(f"Segment callback error: {cb_err}")
+
+                # Yield the first segment with call_id, subsequent with None
                 if i == 1:
                     yield segment, call_id
                 else:
@@ -179,11 +184,11 @@ class TranscriptionService:
 
         # Persist session (update call record)
         ended_at = datetime.utcnow()
-        try:
-            await self.add_call_record({
-                "call_context": [seg.__dict__ for seg in processed_segments],
-                "started_at": started_at,
-                "ended_at": ended_at,
-            })
-        except Exception as db_err:
-            logger.warning(f"Failed to persist streaming session: {db_err}")
+        # try:
+        #     await self.add_call_record({
+        #         "call_context": [seg.__dict__ for seg in processed_segments],
+        #         "started_at": started_at,
+        #         "ended_at": ended_at,
+        #     })
+        # except Exception as db_err:
+        #     logger.warning(f"Failed to persist streaming session: {db_err}")
