@@ -9,8 +9,8 @@ from backend.core.ASR.src.models import PipelineOutput, TranscriptionSegment
 from backend.core.ASR.src.preprocess_audio import audio_utils
 from backend.core.tracing_config import get_metadata
 from langsmith import traceable
-from backend.database.repostries.calls_repo import calls_repository
 from backend.database.models.calls import Calls
+from backend.database.repostries.calls_repo import calls_repository  
 from backend.database.db import NeonDatabase
 from datetime import datetime
 import numpy as np

@@ -10,3 +10,4 @@ models_cache
 data
 Project_Data_Flow_Documentation.ipynb
 .kiro
+.DS_Store

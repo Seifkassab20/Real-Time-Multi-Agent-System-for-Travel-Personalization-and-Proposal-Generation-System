@@ -1,17 +1,21 @@
 import json
 import re
-
 from pydantic import ValidationError
 from backend.core.llm import llm_cloud_model
 from backend.core.extraction_agent.models import TranscriptSegment , Agent_output
 from datetime import date
-
+from backend.database.repostries.extraction_repo import ExtractionRepository
+from backend.database.models.extractions import Extraction
+from backend.database.db import NeonDatabase
+from logging import getLogger
+logger = getLogger("extraction_agent")
 
 today = date.today().isoformat()
 class ExtractionAgent:
 
     def __init__(self):
         self.llm = llm_cloud_model
+        self.extraction_repo = ExtractionRepository()
         self.system_prompt = f"""
         You are a travel information extraction agent. Extract travel details from customer text and return ONLY valid JSON.
         Today's date is {date.today().isoformat()}
@@ -116,8 +120,9 @@ class ExtractionAgent:
         Never hallucinate information.
                 """
     
-    async def invoke(self, segment: TranscriptSegment) -> dict:
-
+    async def invoke(self, segment: TranscriptSegment, segment_number: int, call_id):
+        extraction_id = None 
+        
         messages = [
             {"role": "system", "content": self.system_prompt},
             {"role": "user", "content": f"Extract travel information from this text: '{segment.text}'"}
@@ -126,41 +131,9 @@ class ExtractionAgent:
         try:
             # Call the Ollama LLM
             response = self.llm.chat(messages, temperature=0.0, max_tokens=500)
-
             # Debug the response structure
-            print("DEBUG - Response:", response)
-
-            # Handle different response formats
-            content = None
-            
-            # Case 1: Response is already a dict with the extracted data
-            if isinstance(response, dict):
-                # Check if it has the nested message structure
-                if 'message' in response and 'content' in response['message']:
-                    content = response['message']['content']
-                # Otherwise, assume it's the direct extracted data
-                elif any(key in response for key in ['budget', 'adults', 'children', 'city', 'check_in', 'check_out', 'activities', 'preferences', 'keywords']):
-                    # Response is already the extracted data
-                    try:
-                        validated = Agent_output(**response)
-                        return validated.model_dump(exclude_none=True)
-                    except ValidationError as e:
-                        print("DEBUG - Validation error on direct response:", e)
-                        return {}
-                else:
-                    print("DEBUG - Unknown dict format")
-                    return {}
-            
-            # Case 2: Response is a string
-            elif isinstance(response, str):
-                content = response
-            
-            # Case 3: Unknown format
-            else:
-                print("DEBUG - Unknown response type:", type(response))
-                return {}
-
-            # Process the content string
+            logger.info(f"DEBUG - Response: {response}")
+            content = response
             if content:
                 content = content.strip()
                 
@@ -170,25 +143,46 @@ class ExtractionAgent:
                 content = content.strip()
                 
                 if not content:
-                    print("DEBUG - Content is empty after cleanup")
-                    return {}
+                    logger.info("DEBUG - Content is empty after cleanup")
+                    return {}, extraction_id
                 
                 try:
                     result = json.loads(content)
                     validated = Agent_output(**result)
-                    return validated.model_dump(exclude_none=True)
+                    validated_dict = validated.model_dump(exclude_none=True)
+                    
+                    if segment_number == 1:
+                        extraction_id = await self.add_db(validated_dict, call_id)
+                    else:
+                        await self.update_db(validated_dict, extraction_id)
+                    
+                    return validated_dict, extraction_id
                 except json.JSONDecodeError as e:
-                    print("DEBUG - Failed to parse content as JSON:", content[:100])
-                    return {}
+                    logger.info(f"DEBUG - Failed to parse content as JSON: {content[:100]}")
+                    return {}, extraction_id
                 except ValidationError as e:
-                    print("DEBUG - Validation error:", e)
-                    return {}
+                    logger.info(f"DEBUG - Validation error: {e}")
+                    return {}, extraction_id
             
-            print("DEBUG - No content extracted")
-            return {}
+            logger.info("DEBUG - No content extracted")
+            return {}, extraction_id
             
         except Exception as e:
-            print(f"Error in extraction: {e}")
-            return {}
+            logger.info(f"Error in extraction: {e}")
+            return {}, extraction_id
+
+    async def add_db(self, data: dict, call_id):
+        """Add extraction to database. Expects a dict."""
+        # Add call_id to the data
+        data['call_id'] = call_id
+        async with NeonDatabase().get_session() as session:
+            new_extraction = await self.extraction_repo.create(session, data)
+            return new_extraction.extraction_id
+    
+    async def update_db(self, data: dict, extraction_id):
+        """Update extraction in database. Expects a dict."""
+        async with NeonDatabase().get_session() as session:
+            updated_extraction = await self.extraction_repo.update(session, extraction_id=extraction_id, update_data=data)
+
 
 
