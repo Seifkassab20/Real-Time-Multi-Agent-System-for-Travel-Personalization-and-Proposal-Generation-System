@@ -203,19 +203,20 @@ def save_hotel_result_to_json(result: dict, path="data/artifacts/hotel_result.js
 # ========================================================
 # CLI / TEST RUN
 # ========================================================
-profile = {
-    "budget": {"total": 50000},
-    "dates": {"days": 3},
-    "destination": {"city": "Cairo"}
-}
+if __name__ == "__main__":
+    profile = {
+        "budget": {"total": 50000},
+        "dates": {"days": 3},
+        "destination": {"city": "Cairo"}
+    }
 
-hotels_df = pd.read_excel(
-    "data/hotels_latest.xlsx"
-)
+    hotels_df = pd.read_excel(
+        "backend/core/recommendation_engine/data/data"
+    )
 
-max_price_per_night = (
-    profile["budget"]["total"] * 0.45
-) / profile["dates"]["days"]
+    max_price_per_night = (
+        profile["budget"]["total"] * 0.45
+    ) / profile["dates"]["days"]
 
-result = recommend_hotels(profile, hotels_df, max_price_per_night)
-save_hotel_result_to_json(result)
+    result = recommend_hotels(profile, hotels_df, max_price_per_night)
+    save_hotel_result_to_json(result)

@@ -5,12 +5,12 @@ from backend.core.ASR.src.pipeline import TranscriptionService
 from backend.core.extraction_agent.extraction_agent import ExtractionAgent
 from backend.core.extraction_agent.models import TranscriptSegment, Agent_output
 # from backend.core.profile_agent.profile_agent import ProfileAgent
-# from backend.core.recommendation_engine.recommendation_orchestrator import (
-#     build_user_profile_from_extraction,
-#     merge_value,
-#     MERGE_RULES,
-#     recommend
-# )
+from backend.core.recommendation_engine.recommendation_orchestrator import (
+    build_user_profile_from_extraction,
+    merge_value,
+    MERGE_RULES,
+    recommend
+)
 
 # ------------------------------------------------------------------
 # Initialization
@@ -65,20 +65,20 @@ async def main():
         print(f"[EXTRACTION ID] {extraction_id}")
         print(f"[EXTRACTION] {extraction_result}")
 
-        # # Merge into accumulated profile
-        # merge_extraction_into_profile(final_profile, extraction)
+        # Merge into accumulated profile
+        merge_extraction_into_profile(final_profile, extraction_id)
 
-        # # Build user profile
-        # user_profile = build_user_profile_from_extraction(final_profile)
-        # print(f"\n[USER PROFILE]")
-        # print(user_profile)
+        # Build user profile
+        user_profile = build_user_profile_from_extraction(final_profile)
+        print(f"\n[USER PROFILE]")
+        print(user_profile)
 
-        # # Recommend
-        # recommendation_result = recommend(user_profile)
-        # recommendations.append(recommendation_result)
+        # Recommend
+        recommendation_result = recommend(user_profile)
+        recommendations.append(recommendation_result)
 
-        # print(f"\n[RECOMMENDATION]")
-        # print(recommendation_result)
+        print(f"\n[RECOMMENDATION]")
+        print(recommendation_result)
 
         #User profile completion
         # questions = await profile_agent.invoke(call_id=call_id)
