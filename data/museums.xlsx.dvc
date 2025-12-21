@@ -1,0 +1,5 @@
+outs:
+- md5: bcc7c06d1101779c187a2231d98fac61
+  size: 6757
+  hash: md5
+  path: museums.xlsx

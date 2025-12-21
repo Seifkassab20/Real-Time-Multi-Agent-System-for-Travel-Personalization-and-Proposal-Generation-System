@@ -7,7 +7,9 @@ ASR/__pycache__
 extraction_agent/__pycache__
 *.json
 models_cache
-data
+data/*
+!data/**/*.dvc
+.dvc/cache
 Project_Data_Flow_Documentation.ipynb
 activity_recommendation_agent.log
 hotel_recommendation_agent.log
