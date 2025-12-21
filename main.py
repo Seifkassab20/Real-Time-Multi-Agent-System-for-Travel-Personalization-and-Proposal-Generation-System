@@ -42,6 +42,7 @@ def merge_extraction_into_profile(profile: dict, extraction: Agent_output):
 
 async def main():
     segment_count = 0
+    profile_id = None
 
     async for asr_segment, call_id in asr_service.stream_audio(audio_path):
         segment_count += 1
@@ -63,7 +64,7 @@ async def main():
         extraction_result, extraction_id = await extraction_agent.invoke(transcript, segment_count, call_id)
         
         # User profile completion
-        questions = await profile_agent.invoke(call_id=call_id)
+        questions, profile_id = await profile_agent.invoke(call_id=call_id,segment_number=segment_count, profile_id=profile_id if segment_count >1 else None)
         print(f"\n[PROFILE AGENT QUESTIONS]")
         print(questions)
 
