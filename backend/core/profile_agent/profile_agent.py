@@ -38,14 +38,12 @@ class ProfileAgent:
             return await self.profile_repo.get_by_call_id(session, call_id)
 
 
-    async def invoke(self, call_id: str, segment_number: int, profile_id: str = None) -> dict:
+    async def invoke(self, call_id: str) -> dict:
         """Generate profile questions based on the user's existing profile.
         Args:
             call_id: The extraction/call id for the session.
-            segment_number: The current segment number.
-            profile_id: The profile_id to update (required for segment_number > 1).
         Returns:
-            dict: The LLM response as JSON.
+            tuple: A tuple of (json_response, profile_id).
         """
         # Fetch the user profile from database
         user_profile = await self.get_profile_by_call_id(call_id)
@@ -89,15 +87,7 @@ class ProfileAgent:
                 created_profile = await self.add_db(response, call_id)
                 return response.model_dump_json(), str(created_profile.profile_id)
 
-            # Profile exists; perform update path
-            if segment_number > 1:
-                # If profile_id not provided, use existing one from DB
-                if not profile_id:
-                    profile_id = str(user_profile.profile_id)
-                await self.update_db(response, profile_id)
-                return response.model_dump_json(), profile_id
-
-            # Segment 1 with existing profile: return questions without DB change
+            # Profile exists; return questions with existing profile_id
             return response.model_dump_json(), str(user_profile.profile_id)
         except Exception as e:
             print(f"Error in profile questions generation: {e}")
@@ -177,7 +167,7 @@ class ProfileAgent:
                     update_data[k] = int(v)
                 except Exception:
                     pass
-
+                    
         # Skip DB update if there's nothing to persist
         if not update_data:
             return None

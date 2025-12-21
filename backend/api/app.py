@@ -168,14 +168,22 @@ async def get_profile_questions(call_id: str):
     try:
         result = await profile_agent.invoke(call_id)
         
-        # Parse the JSON response from the agent
-        if isinstance(result, str):
+        # invoke returns a tuple (json_string, profile_id)
+        if isinstance(result, tuple):
+            json_response = result[0]
+            # Parse the JSON string response
+            if isinstance(json_response, str):
+                import json
+                result_data = json.loads(json_response)
+            else:
+                result_data = json_response
+        elif isinstance(result, str):
             import json
             result_data = json.loads(result)
         else:
             result_data = result
         
-        questions = result_data.get("questions", [])
+        questions = result_data.get("questions", []) if result_data else []
         
         return ProfileQuestionsResponse(
             call_id=call_id,
@@ -233,8 +241,8 @@ async def websocket_endpoint(websocket: WebSocket):
                     "message": f"Call started with {client_info['name']}"
                 })
             
-            # Handle audio chunks from frontend
-            elif message.get("type") == "audio_chunk":
+            # Handle audio segments from frontend
+            elif message.get("type") == "audio_segment":
                 audio_data = message.get("data")
                 mime_type = message.get("mimeType", "audio/webm;codecs=opus")
                 
