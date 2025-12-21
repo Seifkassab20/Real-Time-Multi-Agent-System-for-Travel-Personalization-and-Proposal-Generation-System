@@ -9,10 +9,13 @@ import {
   MoreHorizontal,
   Phone,
   WifiOff,
-  Mic
+  Mic,
+  RefreshCw,
+  MessageCircleQuestion
 } from 'lucide-react';
 
 const WEBSOCKET_URL = 'ws://localhost:8000/ws/stream';
+const API_BASE_URL = 'http://localhost:8000';
 
 const TravelDashboard = () => {
   const [isCallActive, setIsCallActive] = useState(false);
@@ -21,6 +24,10 @@ const TravelDashboard = () => {
   const [callDuration, setCallDuration] = useState(0);
   const [transcripts, setTranscripts] = useState([]);
   const [connectionStatus, setConnectionStatus] = useState('disconnected');
+  const [profileQuestions, setProfileQuestions] = useState([]);
+  const [questionsLoading, setQuestionsLoading] = useState(false);
+  const [questionsError, setQuestionsError] = useState(null);
+  const currentCallIdRef = useRef(null);
 
   const mediaStreamRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -58,6 +65,48 @@ const TravelDashboard = () => {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const fetchProfileQuestions = useCallback(async (callId) => {
+    if (!callId) {
+      console.log('No call_id available to fetch questions');
+      return;
+    }
+
+    setQuestionsLoading(true);
+    setQuestionsError(null);
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/profile/questions/${callId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Profile questions received:', data);
+
+      if (data.success && data.questions) {
+        // Replace old questions with new ones
+        setProfileQuestions(data.questions);
+      } else if (data.error) {
+        setQuestionsError(data.error);
+        setProfileQuestions([]);
+      } else {
+        setProfileQuestions([]);
+      }
+    } catch (error) {
+      console.error('Error fetching profile questions:', error);
+      setQuestionsError(error.message);
+      setProfileQuestions([]);
+    } finally {
+      setQuestionsLoading(false);
+    }
+  }, []);
+
   const connectWebSocket = useCallback(() => {
     return new Promise((resolve, reject) => {
       const ws = new WebSocket(WEBSOCKET_URL);
@@ -72,12 +121,24 @@ const TravelDashboard = () => {
         const message = JSON.parse(event.data);
         console.log('Received:', message);
 
-        if (message.type === 'transcript') {
+        if (message.type === 'call_started') {
+          // Store the call_id when call starts
+          currentCallIdRef.current = message.call_id;
+          console.log('Call started with ID:', message.call_id);
+        } else if (message.type === 'transcript') {
           setTranscripts(prev => [...prev, {
             text: message.text,
             segment: message.segment,
             timestamp: new Date().toLocaleTimeString()
           }]);
+        } else if (message.type === 'extraction_done') {
+          // Extraction completed - fetch updated profile questions
+          console.log('Extraction done for segment:', message.segment);
+          if (message.call_id) {
+            fetchProfileQuestions(message.call_id);
+          } else if (currentCallIdRef.current) {
+            fetchProfileQuestions(currentCallIdRef.current);
+          }
         } else if (message.type === 'profile_update') {
           console.log('Profile updated:', message.profile);
         } else if (message.type === 'recommendation') {
@@ -98,7 +159,7 @@ const TravelDashboard = () => {
 
       websocketRef.current = ws;
     });
-  }, []);
+  }, [fetchProfileQuestions]);
 
   const startAudioStreaming = useCallback((stream) => {
     let segmentChunks = [];
@@ -424,35 +485,77 @@ const TravelDashboard = () => {
                 <AlertCircle className="w-5 h-5 text-orange-600" />
               </div>
               <h2 className="text-xl font-bold text-slate-800">Ask Client</h2>
+
+              {/* Refresh button */}
+              {currentCallIdRef.current && (
+                <button
+                  onClick={() => fetchProfileQuestions(currentCallIdRef.current)}
+                  disabled={questionsLoading}
+                  className="ml-auto p-2 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-50"
+                  title="Refresh questions"
+                >
+                  <RefreshCw className={`w-4 h-4 text-slate-500 ${questionsLoading ? 'animate-spin' : ''}`} />
+                </button>
+              )}
             </div>
 
             <div className="space-y-4">
-              {/* Question 1 - High Priority */}
-              <div className="border border-orange-200 bg-[#FFFBF0] p-5 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-3 hover:shadow-md transition-shadow cursor-pointer">
-                <div>
-                  <h3 className="font-bold text-slate-800 text-lg mb-1">"Would you prefer Cairo or Luxor as your base?"</h3>
-                  <p className="text-orange-700/80 text-sm font-medium">Missing destination preference</p>
+              {/* Loading state */}
+              {questionsLoading && profileQuestions.length === 0 && (
+                <div className="text-center py-8 text-slate-400">
+                  <RefreshCw className="w-8 h-8 mx-auto mb-2 animate-spin" />
+                  <p className="text-sm">Loading questions...</p>
                 </div>
-                <span className="bg-orange-200 text-orange-800 text-xs font-bold px-3 py-1.5 rounded whitespace-nowrap">High Priority</span>
-              </div>
+              )}
 
-              {/* Question 2 - Medium */}
-              <div className="border border-amber-200 bg-[#FFFEF0] p-5 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-3 hover:shadow-md transition-shadow cursor-pointer">
-                <div>
-                  <h3 className="font-bold text-slate-800 text-lg mb-1">"Any dietary restrictions for restaurants?"</h3>
-                  <p className="text-amber-700/80 text-sm font-medium">Optimize dining recommendations</p>
+              {/* Error state */}
+              {questionsError && (
+                <div className="border border-red-200 bg-red-50 p-4 rounded-xl">
+                  <p className="text-red-700 text-sm">{questionsError}</p>
                 </div>
-                <span className="bg-amber-200 text-amber-800 text-xs font-bold px-3 py-1.5 rounded whitespace-nowrap">Medium</span>
-              </div>
+              )}
 
-              {/* Question 3 - Suggested */}
-              <div className="border border-blue-200 bg-[#F0F7FF] p-5 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-3 hover:shadow-md transition-shadow cursor-pointer">
-                <div>
-                  <h3 className="font-bold text-slate-800 text-lg mb-1">"Are you interested in hot air balloon rides?"</h3>
-                  <p className="text-blue-700/80 text-sm font-medium">Based on adventure interest</p>
+              {/* Empty state - no questions available */}
+              {!questionsLoading && !questionsError && profileQuestions.length === 0 && (
+                <div className="text-center py-8 text-slate-400 border border-dashed border-slate-200 rounded-xl">
+                  <MessageCircleQuestion className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                  <p className="text-sm font-medium text-slate-500">No questions available</p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {isCallActive
+                      ? "Questions will appear as the profile is built"
+                      : "Start a call to generate profile questions"}
+                  </p>
                 </div>
-                <span className="bg-blue-200 text-blue-800 text-xs font-bold px-3 py-1.5 rounded whitespace-nowrap">Suggested</span>
-              </div>
+              )}
+
+              {/* Dynamic questions from API */}
+              {profileQuestions.map((question, index) => {
+                // Alternate colors based on index
+                const colorSchemes = [
+                  { border: 'border-orange-200', bg: 'bg-[#FFFBF0]', textColor: 'text-orange-700/80', badgeBg: 'bg-orange-200', badgeText: 'text-orange-800' },
+                  { border: 'border-amber-200', bg: 'bg-[#FFFEF0]', textColor: 'text-amber-700/80', badgeBg: 'bg-amber-200', badgeText: 'text-amber-800' },
+                  { border: 'border-blue-200', bg: 'bg-[#F0F7FF]', textColor: 'text-blue-700/80', badgeBg: 'bg-blue-200', badgeText: 'text-blue-800' },
+                  { border: 'border-purple-200', bg: 'bg-[#F5F0FF]', textColor: 'text-purple-700/80', badgeBg: 'bg-purple-200', badgeText: 'text-purple-800' },
+                ];
+                const scheme = colorSchemes[index % colorSchemes.length];
+
+                return (
+                  <div
+                    key={index}
+                    className={`border ${scheme.border} ${scheme.bg} p-5 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-3 hover:shadow-md transition-shadow cursor-pointer`}
+                  >
+                    <div>
+                      <h3 className="font-bold text-slate-800 text-lg mb-1">"{question.question}"</h3>
+                      <p className={`${scheme.textColor} text-sm font-medium`}>
+                        Fields: {question.fields_filling?.join(', ') || 'General'}
+                      </p>
+                    </div>
+                    <span className={`${scheme.badgeBg} ${scheme.badgeText} text-xs font-bold px-3 py-1.5 rounded whitespace-nowrap`}>
+                      Question {index + 1}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

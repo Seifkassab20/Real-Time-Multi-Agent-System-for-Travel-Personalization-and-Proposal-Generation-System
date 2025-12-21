@@ -104,13 +104,20 @@ def convert_webm_to_wav(input_path: str, output_path: str) -> bool:
 from backend.core.ASR.src.pipeline import TranscriptionService
 from backend.core.extraction_agent.extraction_agent import ExtractionAgent
 from backend.core.extraction_agent.models import TranscriptSegment, Agent_output
-# from backend.core.profile_agent.profile_agent import ProfileAgent
-# from backend.core.recommendation_engine.recommendation_orchestrator import (
-#     build_user_profile_from_extraction,
-#     merge_value,
-#     MERGE_RULES,
-#     recommend
-# )
+from backend.core.profile_agent.profile_agent import ProfileAgent
+from pydantic import BaseModel
+from typing import List, Optional
+
+# Pydantic models for API responses
+class QuestionResponse(BaseModel):
+    question: str
+    fields_filling: List[str]
+
+class ProfileQuestionsResponse(BaseModel):
+    call_id: str
+    questions: List[QuestionResponse]
+    success: bool
+    error: Optional[str] = None
 
 app = FastAPI(title="Travel Personalization API")
 
@@ -125,6 +132,9 @@ app.add_middleware(
 # Shared state (in memory)
 active_connections = {}
 
+# Initialize profile agent
+profile_agent = ProfileAgent()
+
 @app.get("/")
 async def root():
     return {
@@ -132,7 +142,8 @@ async def root():
         "message": "Travel Personalization API is running",
         "endpoints": {
             "websocket": "ws://localhost:8000/ws/stream",
-            "health": "http://localhost:8000/health"
+            "health": "http://localhost:8000/health",
+            "profile_questions": "http://localhost:8000/api/profile/questions/{call_id}"
         }
     }
 
@@ -140,12 +151,52 @@ async def root():
 async def health_check():
     return {"status": "healthy", "timestamp": str(datetime.utcnow())}
 
+@app.post("/api/profile/questions/{call_id}", response_model=ProfileQuestionsResponse)
+async def get_profile_questions(call_id: str):
+    """
+    Generate profile questions based on the user's existing profile.
+    
+    This endpoint invokes the ProfileAgent to analyze the user's profile
+    and generate relevant questions to fill in missing information.
+    
+    Args:
+        call_id: The unique identifier for the call/session
+        
+    Returns:
+        ProfileQuestionsResponse with generated questions
+    """
+    try:
+        result = await profile_agent.invoke(call_id)
+        
+        # Parse the JSON response from the agent
+        if isinstance(result, str):
+            import json
+            result_data = json.loads(result)
+        else:
+            result_data = result
+        
+        questions = result_data.get("questions", [])
+        
+        return ProfileQuestionsResponse(
+            call_id=call_id,
+            questions=[QuestionResponse(**q) for q in questions],
+            success=True
+        )
+    except Exception as e:
+        print(f"Profile questions error: {e}")
+        return ProfileQuestionsResponse(
+            call_id=call_id,
+            questions=[],
+            success=False,
+            error=str(e)
+        )
+
 @app.websocket("/ws/stream", name="websocket_endpoint")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     asr_service = TranscriptionService()
     extraction_agent = ExtractionAgent()
-    # profile_agent = ProfileAgent()
+    
     
     final_profile = {}
     recommendations = []
@@ -240,6 +291,14 @@ async def websocket_endpoint(websocket: WebSocket):
                                     extraction_data = extraction_result
                                     
                                 extraction = Agent_output(**extraction_data)
+                                
+                                # Notify frontend that extraction is done so it can fetch updated questions
+                                await websocket.send_json({
+                                    "type": "extraction_done",
+                                    "call_id": call_id,
+                                    "segment": segment_count,
+                                    "message": "Extraction completed successfully"
+                                })
                             except Exception as e:
                                 print(f"Extraction error: {e}")
                                 continue
