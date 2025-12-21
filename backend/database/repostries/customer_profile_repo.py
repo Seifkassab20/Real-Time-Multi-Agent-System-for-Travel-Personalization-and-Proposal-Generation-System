@@ -17,6 +17,21 @@ class CustomerProfileRepository:
         await db.commit()
         await db.refresh(customer_profile)
         return customer_profile
+    
+    async def update(self, db: AsyncSession, profile_id: UUID, update_data: dict) -> Optional[CustomerProfileDB]:
+        """Update a customer profile by profile_id."""
+        result = await db.execute(
+            select(CustomerProfileDB).filter(CustomerProfileDB.profile_id == profile_id)
+        )
+        customer_profile = result.scalars().first()
+        
+        if customer_profile:
+            for key, value in update_data.items():
+                setattr(customer_profile, key, value)
+            await db.commit()
+            await db.refresh(customer_profile)
+            return customer_profile
+        return None
 
     async def get_by_call_id(self, db: AsyncSession, call_id: UUID) -> Optional[CustomerProfileDB]:
         """Retrieve a customer profile by call_id."""

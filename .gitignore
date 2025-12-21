@@ -18,3 +18,4 @@ scraper.log
 .kiro
 .DS_Store
 test_data
+*.ipynb

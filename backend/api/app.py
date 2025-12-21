@@ -182,14 +182,12 @@ async def websocket_endpoint(websocket: WebSocket):
                     "message": f"Call started with {client_info['name']}"
                 })
             
-            # Handle complete 20-second audio segments from frontend
-            elif message.get("type") == "audio_segment":
+            # Handle audio chunks from frontend
+            elif message.get("type") == "audio_chunk":
                 audio_data = message.get("data")
-                duration = message.get("duration", 20)
+                mime_type = message.get("mimeType", "audio/webm;codecs=opus")
                 
                 if audio_data:
-                    print(f"Received {duration}s audio segment")
-                    
                     # Decode base64 audio data
                     audio_bytes = base64.b64decode(audio_data)
                     
