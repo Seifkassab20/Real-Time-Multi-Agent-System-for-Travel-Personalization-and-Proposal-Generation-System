@@ -30,4 +30,9 @@ class PromptLoader:
         if not prompt_template:
             raise ValueError(f"❌ key 'SYSTEM_PROMPT' missing in {file_path}")
             
+<<<<<<< HEAD
         return prompt_template
+=======
+        return prompt_template
+
+>>>>>>> 06c7402 (feat: Implement real-time WebM to WAV audio conversion using ffmpeg in the API and remove prompt loader example usage.)
