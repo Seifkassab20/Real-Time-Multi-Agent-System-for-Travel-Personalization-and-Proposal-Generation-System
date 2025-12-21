@@ -12,8 +12,8 @@ sys.path.append(os.path.join(current_dir, "../../../"))
 from uuid import UUID
 
 from backend.core.llm import OllamaCloudLLM
-from backend.core.profile_agent.prompt import profile_agent_prompt
-from backend.core.profile_agent.models import CustomerProfile, profile_agent_response
+from backend.core.prompts.prompt_loader import PromptLoader
+from backend.core.profile_agent.models import profile_agent_response
 from backend.database.db import NeonDatabase
 from backend.database.models.customer_profile import CustomerProfileDB
 from backend.database.repostries.customer_profile_repo import CustomerProfileRepository
@@ -23,7 +23,7 @@ from backend.database.repostries.customer_profile_repo import CustomerProfileRep
 class ProfileAgent:
     def __init__(self):
         self.llm = OllamaCloudLLM()
-        self.system_prompt = profile_agent_prompt
+        self.system_prompt = PromptLoader.load_prompt("profile_agent_prompt.yaml")
         self.profile_repo = CustomerProfileRepository()
 
     async def get_profile_by_call_id(self, call_id: str) -> CustomerProfileDB | None:
