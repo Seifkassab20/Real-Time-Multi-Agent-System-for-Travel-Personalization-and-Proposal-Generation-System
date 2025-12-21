@@ -34,9 +34,11 @@ class CustomerProfileRepository:
         return None
 
     async def get_by_call_id(self, db: AsyncSession, call_id: UUID) -> Optional[CustomerProfileDB]:
-        """Retrieve a customer profile by call_id."""
+        """Retrieve a customer profile by call_id.
+        Note: In this system, profiles store `extraction_id` as the linkage, which equals the call_id.
+        """
         result = await db.execute(
-            select(CustomerProfileDB).filter(CustomerProfileDB.call_id == call_id)
+            select(CustomerProfileDB).filter(CustomerProfileDB.extraction_id == call_id)
         )
         return result.scalars().first()
 

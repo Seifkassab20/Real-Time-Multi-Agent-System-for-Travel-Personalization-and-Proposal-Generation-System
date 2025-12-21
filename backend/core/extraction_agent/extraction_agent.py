@@ -19,8 +19,8 @@ class ExtractionAgent:
         self.extraction_repo = ExtractionRepository()
         self.system_prompt = PromptLoader.load_prompt("extraction_agent_prompt.yaml")
     
-    async def invoke(self, segment: TranscriptSegment, segment_number: int, call_id):
-        extraction_id = None 
+    async def invoke(self, segment: TranscriptSegment, segment_number: int, call_id, extraction_id=None):
+        # extraction_id: propagate previously created extraction id for updates
         self.system_prompt = self.system_prompt.format(today=today)
         messages = [
             {"role": "system", "content": self.system_prompt},
@@ -53,7 +53,11 @@ class ExtractionAgent:
                     if segment_number == 1:
                         extraction_id = await self.add_db(validated_dict, call_id)
                     else:
-                        await self.update_db(validated_dict, extraction_id)
+                        # Only attempt update when we have a valid extraction_id
+                        if extraction_id:
+                            await self.update_db(validated_dict, extraction_id)
+                        else:
+                            logger.info("DEBUG - Skipping update: missing extraction_id for segment > 1")
                     
                     return validated_dict, extraction_id
                 except json.JSONDecodeError as e:
@@ -74,12 +78,56 @@ class ExtractionAgent:
         """Add extraction to database. Expects a dict."""
         # Add call_id to the data
         data['call_id'] = call_id
+        # Normalize date strings to date objects
+        for k in ("check_in", "check_out"):
+            v = data.get(k)
+            if isinstance(v, str) and v:
+                try:
+                    data[k] = date.fromisoformat(v)
+                except Exception:
+                    pass
+        # Coerce numeric fields to strings for VARCHAR columns
+        for k in ("adults", "children", "rooms", "budget"):
+            v = data.get(k)
+            if v is not None and not isinstance(v, str):
+                try:
+                    data[k] = str(v)
+                except Exception:
+                    pass
+        # Convert children_age list to comma-separated string if provided
+        if isinstance(data.get("children_age"), list):
+            try:
+                data["children_age"] = ",".join(str(x) for x in data["children_age"])
+            except Exception:
+                pass
         async with NeonDatabase().get_session() as session:
             new_extraction = await self.extraction_repo.create(session, data)
             return new_extraction.extraction_id
     
     async def update_db(self, data: dict, extraction_id):
         """Update extraction in database. Expects a dict."""
+        # Normalize date strings to date objects
+        for k in ("check_in", "check_out"):
+            v = data.get(k)
+            if isinstance(v, str) and v:
+                try:
+                    data[k] = date.fromisoformat(v)
+                except Exception:
+                    pass
+        # Coerce numeric fields to strings for VARCHAR columns
+        for k in ("adults", "children", "rooms", "budget"):
+            v = data.get(k)
+            if v is not None and not isinstance(v, str):
+                try:
+                    data[k] = str(v)
+                except Exception:
+                    pass
+        # Convert children_age list to comma-separated string if provided
+        if isinstance(data.get("children_age"), list):
+            try:
+                data["children_age"] = ",".join(str(x) for x in data["children_age"])
+            except Exception:
+                pass
         async with NeonDatabase().get_session() as session:
             updated_extraction = await self.extraction_repo.update(session, extraction_id=extraction_id, update_data=data)
 
