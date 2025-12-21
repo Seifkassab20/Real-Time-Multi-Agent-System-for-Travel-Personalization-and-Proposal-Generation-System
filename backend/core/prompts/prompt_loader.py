@@ -31,11 +31,3 @@ class PromptLoader:
             raise ValueError(f"❌ key 'SYSTEM_PROMPT' missing in {file_path}")
             
         return prompt_template
-
-# --- Usage ---
-# It works exactly the same way from the outside
-try:
-    template = PromptLoader.load_prompt("prompts/asr_correction.yaml")
-    print("✅ Loaded successfully")
-except Exception as e:
-    print(e)

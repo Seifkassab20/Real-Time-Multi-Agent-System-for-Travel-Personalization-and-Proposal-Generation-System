@@ -17,6 +17,7 @@ from backend.core.profile_agent.models import profile_agent_response
 from backend.database.db import NeonDatabase
 from backend.database.models.customer_profile import CustomerProfileDB
 from backend.database.repostries.customer_profile_repo import CustomerProfileRepository
+from backend.database.repostries.extraction_repo import ExtractionRepository
 
 
 
@@ -25,13 +26,14 @@ class ProfileAgent:
         self.llm = OllamaCloudLLM()
         self.system_prompt = PromptLoader.load_prompt("profile_agent_prompt.yaml")
         self.profile_repo = CustomerProfileRepository()
+        self.extraction_repo = ExtractionRepository()
 
     async def get_profile_by_call_id(self, call_id: str) -> CustomerProfileDB | None:
         """Retrieve a customer profile from the database using call_id."""
         NeonDatabase.init()
         
         async with NeonDatabase.get_session() as session:
-            return await self.profile_repo.get_by_call_id(session, UUID(call_id))
+            return await self.extraction_repo.get_by_call_id(session, call_id)
 
 
     async def invoke(self, call_id: str) -> dict:
