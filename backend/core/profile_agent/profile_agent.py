@@ -34,7 +34,8 @@ class ProfileAgent:
         NeonDatabase.init()
         
         async with NeonDatabase.get_session() as session:
-            return await self.extraction_repo.get_by_id(session, call_id)
+            # Profiles are linked via extraction_id, which in this system is set to call_id
+            return await self.profile_repo.get_by_call_id(session, call_id)
 
 
     async def invoke(self, call_id: str, segment_number: int, profile_id: str = None) -> dict:
@@ -83,15 +84,21 @@ class ProfileAgent:
             )
             print("DEBUG - Response:", response)
 
-            if segment_number == 1:
-                # Create new profile row and return its profile_id for future updates
+            # Create-if-missing: if no profile exists, insert regardless of segment
+            if not user_profile:
                 created_profile = await self.add_db(response, call_id)
                 return response.model_dump_json(), str(created_profile.profile_id)
-            else:
+
+            # Profile exists; perform update path
+            if segment_number > 1:
+                # If profile_id not provided, use existing one from DB
                 if not profile_id:
-                    raise ValueError("profile_id must be provided for updating profile in segment > 1")
+                    profile_id = str(user_profile.profile_id)
                 await self.update_db(response, profile_id)
                 return response.model_dump_json(), profile_id
+
+            # Segment 1 with existing profile: return questions without DB change
+            return response.model_dump_json(), str(user_profile.profile_id)
         except Exception as e:
             print(f"Error in profile questions generation: {e}")
             return None, None
@@ -99,15 +106,80 @@ class ProfileAgent:
 
     async def add_db(self, data: dict, call_id):
         """Add customer profile to database. Expects a dict."""
-        # Prepare data for CustomerProfileDB
-        data = dict(data)
-        data['extraction_id'] = call_id
+        # Only persist supported DB fields; ignore LLM-only keys like 'questions'
+        raw: dict
+        if hasattr(data, "model_dump"):
+            raw = data.model_dump(exclude_none=True)
+        elif hasattr(data, "dict"):
+            raw = data.dict(exclude_none=True)
+        else:
+            raw = dict(data) if isinstance(data, dict) else {}
+
+        allowed_keys = {
+            "check_in", "check_out", "budget", "adults", "children",
+            "children_ages", "specific_sites", "interests",
+            "accommodation_preference", "tour_style",
+        }
+        payload = {k: raw[k] for k in allowed_keys if k in raw}
+
+        # Normalize types
+        from datetime import date as _date
+        for k in ("check_in", "check_out"):
+            v = payload.get(k)
+            if isinstance(v, str) and v:
+                try:
+                    payload[k] = _date.fromisoformat(v)
+                except Exception:
+                    pass
+        for k in ("budget", "adults", "children"):
+            v = payload.get(k)
+            if isinstance(v, str):
+                try:
+                    payload[k] = int(v)
+                except Exception:
+                    pass
+
+        payload['extraction_id'] = call_id
         async with NeonDatabase().get_session() as session:
-            new_profile = await self.profile_repo.create(session, CustomerProfileDB(**data))
+            new_profile = await self.profile_repo.create(session, CustomerProfileDB(**payload))
             return new_profile
 
     async def update_db(self, data: dict, profile_id):
         """Update customer profile in database. Expects a dict and profile_id."""
-        update_data = dict(data)
+        raw: dict
+        if hasattr(data, "model_dump"):
+            raw = data.model_dump(exclude_none=True)
+        elif hasattr(data, "dict"):
+            raw = data.dict(exclude_none=True)
+        else:
+            raw = dict(data) if isinstance(data, dict) else {}
+
+        allowed_keys = {
+            "check_in", "check_out", "budget", "adults", "children",
+            "children_ages", "specific_sites", "interests",
+            "accommodation_preference", "tour_style",
+        }
+        update_data = {k: raw[k] for k in allowed_keys if k in raw}
+
+        # Normalize types
+        from datetime import date as _date
+        for k in ("check_in", "check_out"):
+            v = update_data.get(k)
+            if isinstance(v, str) and v:
+                try:
+                    update_data[k] = _date.fromisoformat(v)
+                except Exception:
+                    pass
+        for k in ("budget", "adults", "children"):
+            v = update_data.get(k)
+            if isinstance(v, str):
+                try:
+                    update_data[k] = int(v)
+                except Exception:
+                    pass
+
+        # Skip DB update if there's nothing to persist
+        if not update_data:
+            return None
         async with NeonDatabase().get_session() as session:
             await self.profile_repo.update(session, profile_id=profile_id, update_data=update_data)
