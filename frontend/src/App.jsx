@@ -20,7 +20,8 @@ const TravelDashboard = () => {
   const [clientNumber, setClientNumber] = useState("");
   const [callDuration, setCallDuration] = useState(0);
   const [transcripts, setTranscripts] = useState([]);
-  const [connectionStatus, setConnectionStatus] = useState('disconnected');
+  // Prefixed with underscore to indicate it's intentionally set but not displayed in UI
+  const [_connectionStatus, setConnectionStatus] = useState('disconnected');
 
   const mediaStreamRef = useRef(null);
   const mediaRecorderRef = useRef(null);
@@ -29,14 +30,12 @@ const TravelDashboard = () => {
 
   // Timer logic for live call
   useEffect(() => {
-    let interval;
-    if (isCallActive) {
-      interval = setInterval(() => {
-        setCallDuration(prev => prev + 1);
-      }, 1000);
-    } else {
-      setCallDuration(0);
+    if (!isCallActive) {
+      return;
     }
+    const interval = setInterval(() => {
+      setCallDuration(prev => prev + 1);
+    }, 1000);
     return () => clearInterval(interval);
   }, [isCallActive]);
 
@@ -215,6 +214,7 @@ const TravelDashboard = () => {
         // Start streaming audio
         startAudioStreaming(stream);
 
+        setCallDuration(0); // Reset call duration
         setIsCallActive(true);
         setTranscripts([]); // Clear previous transcripts
       } catch (err) {
