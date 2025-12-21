@@ -4,6 +4,9 @@ import uvicorn
 import json
 import asyncio
 import uuid
+import base64
+import tempfile
+import os
 from datetime import datetime
 
 # Import your actual pipeline components from your project structure
@@ -47,7 +50,7 @@ async def root():
 async def health_check():
     return {"status": "healthy", "timestamp": str(datetime.utcnow())}
 
-@app.websocket("/ws/stream",name="websocket_endpoint")
+@app.websocket("/ws/stream", name="websocket_endpoint")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
     asr_service = TranscriptionService()
@@ -57,16 +60,102 @@ async def websocket_endpoint(websocket: WebSocket):
     final_profile = {}
     recommendations = []
     segment_count = 0
+    client_info = {}
+    call_id = str(uuid.uuid4())
+    audio_buffer = []
     
-    try:
+    # Create a temporary directory for audio files
+    temp_dir = tempfile.mkdtemp()
+    
+    try: 
         while True:
             data = await websocket.receive_text()
             message = json.loads(data)
             
-            if message.get("type") == "process_audio":
+            # Handle start_call message with client info
+            if message.get("type") == "start_call":
+                client_info = {
+                    "name": message.get("clientName", "Unknown"),
+                    "phone": message.get("clientPhone", ""),
+                    "call_id": call_id,
+                    "started_at": datetime.utcnow().isoformat()
+                }
+                print(f"Call started with client: {client_info['name']} ({client_info['phone']})")
+                
+                await websocket.send_json({
+                    "type": "call_started",
+                    "call_id": call_id,
+                    "message": f"Call started with {client_info['name']}"
+                })
+            
+            # Handle audio chunks from frontend
+            elif message.get("type") == "audio_chunk":
+                audio_data = message.get("data")
+                mime_type = message.get("mimeType", "audio/webm;codecs=opus")
+                
+                if audio_data:
+                    # Decode base64 audio data
+                    audio_bytes = base64.b64decode(audio_data)
+                    audio_buffer.append(audio_bytes)
+                    
+                    # Process audio when we have enough data (e.g., every 3 chunks = 3 seconds)
+                    if len(audio_buffer) >= 3:
+                        # Combine audio chunks
+                        combined_audio = b''.join(audio_buffer)
+                        audio_buffer = []  # Clear buffer
+                        
+                        # Save to temporary file for processing
+                        temp_audio_path = os.path.join(temp_dir, f"chunk_{segment_count}.webm")
+                        with open(temp_audio_path, 'wb') as f:
+                            f.write(combined_audio)
+                        
+                        # Process the audio through ASR
+                        try:
+                            async for asr_segment, seg_call_id in asr_service.stream_audio(temp_audio_path):
+                                segment_count += 1
+                                
+                                await websocket.send_json({
+                                    "type": "transcript",
+                                    "text": asr_segment.corrected_text,
+                                    "segment": segment_count
+                                })
+
+                                # 2. Extract
+                                transcript_obj = TranscriptSegment(
+                                    segment_id=str(uuid.uuid4()),
+                                    timestamp=datetime.utcnow(),
+                                    speaker="customer",
+                                    text=asr_segment.corrected_text
+                                )
+                                
+                                try:
+                                    extraction_result = await extraction_agent.invoke(transcript_obj, segment_count, call_id)
+                      
+                                    if isinstance(extraction_result, tuple):
+                                        extraction_data = extraction_result[0]
+                                    else:
+                                        extraction_data = extraction_result
+                                        
+                                    extraction = Agent_output(**extraction_data)
+                                except Exception as e:
+                                    print(f"Extraction error: {e}")
+                                    continue
+                        except Exception as e:
+                            print(f"ASR Error: {e}")
+                            await websocket.send_json({
+                                "type": "error",
+                                "message": f"Transcription error: {str(e)}"
+                            })
+                        finally:
+                            # Clean up temp file
+                            if os.path.exists(temp_audio_path):
+                                os.remove(temp_audio_path)
+            
+            # Handle legacy process_audio message (file path based)
+            elif message.get("type") == "process_audio":
                 audio_path = message.get("path")
                 
-                async for asr_segment, call_id in asr_service.stream_audio(audio_path):
+                async for asr_segment, seg_call_id in asr_service.stream_audio(audio_path):
                     segment_count += 1
                     
                     await websocket.send_json({
@@ -83,9 +172,8 @@ async def websocket_endpoint(websocket: WebSocket):
                         text=asr_segment.corrected_text
                     )
                     
-    
                     try:
-                        extraction_result = await extraction_agent.invoke(transcript_obj,segment_count,call_id)
+                        extraction_result = await extraction_agent.invoke(transcript_obj, segment_count, call_id)
           
                         if isinstance(extraction_result, tuple):
                             extraction_data = extraction_result[0]
@@ -97,32 +185,8 @@ async def websocket_endpoint(websocket: WebSocket):
                         print(f"Extraction error: {e}")
                         continue
 
-                    # # 3. Merge Profile
-                    # # Helper function inlined or imported
-                    # for field, rule in MERGE_RULES.items():
-                    #     final_profile[field] = merge_value(
-                    #         final_profile.get(field),
-                    #         getattr(extraction, field, None),
-                    #         rule
-                    #     )
-                    
-                    # user_profile = build_user_profile_from_extraction(final_profile)
-                    
-                    # await websocket.send_json({
-                    #     "type": "profile_update",
-                    #     "profile": user_profile
-                    # })
-
-                    # # 4. Recommend
-                    # rec_result = recommend(user_profile)
-                    # recommendations.append(rec_result)
-                    
-                    # await websocket.send_json({
-                    #     "type": "recommendation",
-                    #     "data": rec_result
-                    # })
-
             elif message.get("type") == "stop":
+                print(f"Call ended for client: {client_info.get('name', 'Unknown')}")
                 break
 
     except WebSocketDisconnect:
@@ -130,6 +194,12 @@ async def websocket_endpoint(websocket: WebSocket):
     except Exception as e:
         print(f"Error: {e}")
         await websocket.close()
+    finally:
+        # Clean up temp directory
+        import shutil
+        if os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
