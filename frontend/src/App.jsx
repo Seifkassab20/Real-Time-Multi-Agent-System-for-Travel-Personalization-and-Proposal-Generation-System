@@ -101,32 +101,66 @@ const TravelDashboard = () => {
   }, []);
 
   const startAudioStreaming = useCallback((stream) => {
-    const mediaRecorder = new MediaRecorder(stream, {
-      mimeType: 'audio/webm;codecs=opus'
-    });
-    mediaRecorderRef.current = mediaRecorder;
-    audioChunksRef.current = [];
+    let segmentChunks = [];
+    const SEGMENT_DURATION_MS = 10000; // 10 seconds per segment
 
-    mediaRecorder.ondataavailable = async (event) => {
-      if (event.data.size > 0 && websocketRef.current?.readyState === WebSocket.OPEN) {
-        // Convert blob to base64 and send
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          const base64Audio = reader.result.split(',')[1];
-          websocketRef.current.send(JSON.stringify({
-            type: 'audio_chunk',
-            data: base64Audio,
-            mimeType: 'audio/webm;codecs=opus'
-          }));
-        };
-        reader.readAsDataURL(event.data);
-        audioChunksRef.current.push(event.data);
-      }
+    const createAndStartRecorder = () => {
+      const mediaRecorder = new MediaRecorder(stream, {
+        mimeType: 'audio/webm;codecs=opus'
+      });
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          segmentChunks.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = async () => {
+        // Combine all chunks into a single blob with valid headers
+        if (segmentChunks.length > 0 && websocketRef.current?.readyState === WebSocket.OPEN) {
+          const completeBlob = new Blob(segmentChunks, { type: 'audio/webm;codecs=opus' });
+          segmentChunks = []; // Clear for next segment
+
+          // Convert to base64 and send
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const base64Audio = reader.result.split(',')[1];
+            websocketRef.current.send(JSON.stringify({
+              type: 'audio_segment',
+              data: base64Audio,
+              mimeType: 'audio/webm;codecs=opus',
+              duration: SEGMENT_DURATION_MS / 1000
+            }));
+            console.log('Sent 20-second audio segment');
+          };
+          reader.readAsDataURL(completeBlob);
+
+          // Store for potential download
+          audioChunksRef.current.push(completeBlob);
+        }
+
+        // Start a new recording if still active
+        if (stream.active && websocketRef.current?.readyState === WebSocket.OPEN) {
+          createAndStartRecorder();
+        }
+      };
+
+      // Collect data frequently for smooth accumulation
+      mediaRecorder.start(1000);
+      console.log('Audio segment recording started');
+
+      // Stop after 20 seconds to create a complete segment
+      setTimeout(() => {
+        if (mediaRecorder.state === 'recording') {
+          mediaRecorder.stop();
+        }
+      }, SEGMENT_DURATION_MS);
     };
 
-    // Send audio chunks every 1 second
-    mediaRecorder.start(1000);
-    console.log('Audio streaming started');
+    // Start the first recording
+    createAndStartRecorder();
+    console.log('Audio streaming started (20-second segments)');
   }, []);
 
   const handleToggleCall = async () => {
