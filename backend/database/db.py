@@ -26,9 +26,6 @@ class NeonDatabase:
             # Clean up any trailing '?' or '&' 
             async_url = re.sub(r"[?&]$", "", async_url)
             
-            print(f"Original URL: {database_url}")
-            print(f"Converted URL: {async_url}")
-
             cls._engine = create_async_engine(
                 async_url, 
                 echo=True, 

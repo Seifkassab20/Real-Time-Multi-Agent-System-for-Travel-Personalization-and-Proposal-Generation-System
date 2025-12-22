@@ -79,6 +79,10 @@ class PlanningAgent:
     def distribute_budget(self):
         try:
             total = self.profile["budget"]["total"]
+            if total is None:
+                log(stage="budget_distribution", level="warning", message="Budget total is None, defaulting to 10000")
+                total = 10000
+            
             days = self.profile["dates"]["days"]
 
             budget = {

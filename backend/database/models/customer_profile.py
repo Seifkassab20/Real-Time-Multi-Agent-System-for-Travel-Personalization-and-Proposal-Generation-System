@@ -12,25 +12,20 @@ class CustomerProfileDB(Base):
 
     # IDs
     profile_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    call_id = Column(UUID(as_uuid=True), nullable=False)
+    extraction_id = Column(UUID(as_uuid=True), nullable=False)
 
     # Dates
-    start_date = Column(Date, nullable=True)
-    end_date = Column(Date, nullable=True)
+    check_in = Column(Date, nullable=True)
+    check_out = Column(Date, nullable=True)
 
     # Budget
-    budget_amount = Column(Integer, nullable=True)
-    budget_currency = Column(String(3), nullable=True)
+    budget = Column(Integer, nullable=True)
+
 
     # Travelers
     adults = Column(Integer, nullable=True)
     children = Column(Integer, nullable=True)
-    
-
     children_ages = Column(JSONB, nullable=True)
-
-
-    cities = Column(JSONB, nullable=True)
     specific_sites = Column(JSONB, nullable=True)
 
     # Interests & Preferences

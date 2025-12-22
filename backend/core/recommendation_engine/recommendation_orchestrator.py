@@ -77,20 +77,20 @@ def build_user_profile_from_extraction(extracted_data):
     
     user_profile = {
         "budget": {
-            "total": extracted_data.get("budget", 2000)
+            "total": extracted_data.get("budget") or 2000
         },
         "travelers": {
-            "adults": extracted_data.get("adults", 1),
-            "children": extracted_data.get("children", 0),
-            "children_age": extracted_data.get("children_age", [])
+            "adults": extracted_data.get("adults") or 1,
+            "children": extracted_data.get("children") or 0,
+            "children_age": extracted_data.get("children_age") or []
         },
-        "rooms": extracted_data.get("rooms", 1),
+        "rooms": extracted_data.get("rooms") or 1,
         "dates": {
             "days": days,
-            "start_date": extracted_data.get("check_in", (today + timedelta(days=0)).strftime("%Y-%m-%d")),
-            "end_date": extracted_data.get("check_out", (today + timedelta(days=days)).strftime("%Y-%m-%d"))
+            "start_date": extracted_data.get("check_in") or (today + timedelta(days=0)).strftime("%Y-%m-%d"),
+            "end_date": extracted_data.get("check_out") or (today + timedelta(days=days)).strftime("%Y-%m-%d")
         },
-        "destination": extracted_data.get("city", "Cairo"),
+        "destination": extracted_data.get("city") or "Cairo",
         "interests": interests
     }
     return user_profile

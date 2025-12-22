@@ -1,0 +1,5 @@
+outs:
+- md5: 7f591a8c2044013f9f21123496039715
+  size: 38154
+  hash: md5
+  path: hotels_latest.xlsx

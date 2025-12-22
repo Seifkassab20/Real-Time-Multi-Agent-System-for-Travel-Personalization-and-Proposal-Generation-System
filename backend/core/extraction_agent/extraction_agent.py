@@ -1,123 +1,27 @@
 import json
 import re
-
 from pydantic import ValidationError
 from backend.core.llm import llm_cloud_model
+from backend.core.prompts.prompt_loader import PromptLoader
 from backend.core.extraction_agent.models import TranscriptSegment , Agent_output
 from datetime import date
-
+from backend.database.repostries.extraction_repo import ExtractionRepository
+from backend.database.models.extractions import Extraction
+from backend.database.db import NeonDatabase
+from logging import getLogger
+logger = getLogger("extraction_agent")
 
 today = date.today().isoformat()
 class ExtractionAgent:
 
     def __init__(self):
         self.llm = llm_cloud_model
-        self.system_prompt = f"""
-        You are a travel information extraction agent. Extract travel details from customer text and return ONLY valid JSON.
-        Today's date is {date.today().isoformat()}
-
-        Extract these fields ONLY if explicitly mentioned:
-
-        - budget: number
-        - adults: number
-        - children: number
-        - children_age: list of numbers
-        - rooms: number
-        - city: "Cairo" or "Giza" only
-        - check_in: string in YYYY-MM-DD format
-        - check_out: string in YYYY-MM-DD format
-        - activities: list of strings (ENGLISH ONLY)
-        - preferences: list of strings (ENGLISH ONLY)
-        - keywords: list of strings (ENGLISH ONLY)
-        ========================
-        LANGUAGE RULES (STRICT)
-        ========================
-
-        - activities MUST be written in ENGLISH only
-        - preferences MUST be written in ENGLISH only
-        - keywords MUST be written in ENGLISH only
-        - If the user speaks Arabic or mixed language, TRANSLATE these fields to English
-        - Do NOT output Arabic text in these fields
-
-        ========================
-        ACTIVITIES RULES (CRITICAL)
-        ========================
-
-        - Convert all activity mentions into full, natural English sentences
-        - Each activity must be a complete sentence
-        - Activities must be specific and related to Egyptian tourism only
-        - Include location and intent when possible
-        - Avoid vague phrases
-
-        Example:
-        Input: "عايز اشوف الاهرامات"
-        Output activity:
-        - "Visit and explore the Great Pyramids of Giza."
-
-        ========================
-        DATE & TIME REASONING (CRITICAL)
-        ========================
-
-        TODAY_DATE is provided below and MUST be used for all calculations.
-
-        TODAY_DATE: {today}
-
-        Rules:
-        1. If no date or duration is mentioned, return empty date fields
-
-        2. If the user mentions explicit dates:
-        - Convert them to YYYY-MM-DD format
-        - Use the correct year relative to TODAY_DATE
-
-        3. If the user mentions RELATIVE dates:
-        - "next week", "next month", "tomorrow", etc.
-        - Calculate the exact date using TODAY_DATE
-
-        4. If the user mentions STAY DURATION verbally:
-        - Examples: "a week", "7 days", "15 days", "a month"
-        - If a start date is mentioned:
-            - check_out = check_in + duration
-        - If no start date is mentioned:
-            - check_in = TODAY_DATE (or calculated relative start)
-            - check_out = check_in + duration
-
-        5. Duration conversions:
-        - "a week" = 7 days
-        - "two weeks" = 14 days
-        - "15 days" = 15 days
-        - "a month" = 30 days
-
-
-
-        ========================
-        CITY RULES
-        ========================
-
-        - city MUST be exactly one of: "Cairo", "Giza"
-        - Ignore any other locations
-
-        ========================
-        OUTPUT CONSTRAINTS
-        ========================
-
-        - Output MUST be valid JSON only
-        - Use double quotes only
-        - No markdown
-        - No comments
-        - No trailing commas
-        - Omit fields that are not mentioned
-        - If no travel-related information exists, return 
-
-        ========================
-        FINAL RULE
-        ========================
-
-        Precision is more important than completeness.
-        Never hallucinate information.
-                """
+        self.extraction_repo = ExtractionRepository()
+        self.system_prompt = PromptLoader.load_prompt("extraction_agent_prompt.yaml")
     
-    async def invoke(self, segment: TranscriptSegment) -> dict:
-
+    async def invoke(self, segment: TranscriptSegment, segment_number: int, call_id, extraction_id=None):
+        # extraction_id: propagate previously created extraction id for updates
+        self.system_prompt = self.system_prompt.format(today=today)
         messages = [
             {"role": "system", "content": self.system_prompt},
             {"role": "user", "content": f"Extract travel information from this text: '{segment.text}'"}
@@ -126,41 +30,9 @@ class ExtractionAgent:
         try:
             # Call the Ollama LLM
             response = self.llm.chat(messages, temperature=0.0, max_tokens=500)
-
             # Debug the response structure
-            print("DEBUG - Response:", response)
-
-            # Handle different response formats
-            content = None
-            
-            # Case 1: Response is already a dict with the extracted data
-            if isinstance(response, dict):
-                # Check if it has the nested message structure
-                if 'message' in response and 'content' in response['message']:
-                    content = response['message']['content']
-                # Otherwise, assume it's the direct extracted data
-                elif any(key in response for key in ['budget', 'adults', 'children', 'city', 'check_in', 'check_out', 'activities', 'preferences', 'keywords']):
-                    # Response is already the extracted data
-                    try:
-                        validated = Agent_output(**response)
-                        return validated.model_dump(exclude_none=True)
-                    except ValidationError as e:
-                        print("DEBUG - Validation error on direct response:", e)
-                        return {}
-                else:
-                    print("DEBUG - Unknown dict format")
-                    return {}
-            
-            # Case 2: Response is a string
-            elif isinstance(response, str):
-                content = response
-            
-            # Case 3: Unknown format
-            else:
-                print("DEBUG - Unknown response type:", type(response))
-                return {}
-
-            # Process the content string
+            logger.info(f"DEBUG - Response: {response}")
+            content = response
             if content:
                 content = content.strip()
                 
@@ -170,25 +42,94 @@ class ExtractionAgent:
                 content = content.strip()
                 
                 if not content:
-                    print("DEBUG - Content is empty after cleanup")
-                    return {}
+                    logger.info("DEBUG - Content is empty after cleanup")
+                    return {}, extraction_id
                 
                 try:
                     result = json.loads(content)
                     validated = Agent_output(**result)
-                    return validated.model_dump(exclude_none=True)
+                    validated_dict = validated.model_dump(exclude_none=True)
+                    
+                    if segment_number == 1:
+                        extraction_id = await self.add_db(validated_dict, call_id)
+                    else:
+                        # Only attempt update when we have a valid extraction_id
+                        if extraction_id:
+                            await self.update_db(validated_dict, extraction_id)
+                        else:
+                            logger.info("DEBUG - Skipping update: missing extraction_id for segment > 1")
+                    
+                    return validated_dict, extraction_id
                 except json.JSONDecodeError as e:
-                    print("DEBUG - Failed to parse content as JSON:", content[:100])
-                    return {}
+                    logger.info(f"DEBUG - Failed to parse content as JSON: {content[:100]}")
+                    return {}, extraction_id
                 except ValidationError as e:
-                    print("DEBUG - Validation error:", e)
-                    return {}
+                    logger.info(f"DEBUG - Validation error: {e}")
+                    return {}, extraction_id
             
-            print("DEBUG - No content extracted")
-            return {}
+            logger.info("DEBUG - No content extracted")
+            return {}, extraction_id
             
         except Exception as e:
-            print(f"Error in extraction: {e}")
-            return {}
+            logger.info(f"Error in extraction: {e}")
+            return {}, extraction_id
+
+    async def add_db(self, data: dict, call_id):
+        """Add extraction to database. Expects a dict."""
+        # Add call_id to the data
+        data['call_id'] = call_id
+        # Normalize date strings to date objects
+        for k in ("check_in", "check_out"):
+            v = data.get(k)
+            if isinstance(v, str) and v:
+                try:
+                    data[k] = date.fromisoformat(v)
+                except Exception:
+                    pass
+        # Coerce numeric fields to strings for VARCHAR columns
+        for k in ("adults", "children", "rooms", "budget"):
+            v = data.get(k)
+            if v is not None and not isinstance(v, str):
+                try:
+                    data[k] = str(v)
+                except Exception:
+                    pass
+        # Convert children_age list to comma-separated string if provided
+        if isinstance(data.get("children_age"), list):
+            try:
+                data["children_age"] = ",".join(str(x) for x in data["children_age"])
+            except Exception:
+                pass
+        async with NeonDatabase().get_session() as session:
+            new_extraction = await self.extraction_repo.create(session, data)
+            return new_extraction.extraction_id
+    
+    async def update_db(self, data: dict, extraction_id):
+        """Update extraction in database. Expects a dict."""
+        # Normalize date strings to date objects
+        for k in ("check_in", "check_out"):
+            v = data.get(k)
+            if isinstance(v, str) and v:
+                try:
+                    data[k] = date.fromisoformat(v)
+                except Exception:
+                    pass
+        # Coerce numeric fields to strings for VARCHAR columns
+        for k in ("adults", "children", "rooms", "budget"):
+            v = data.get(k)
+            if v is not None and not isinstance(v, str):
+                try:
+                    data[k] = str(v)
+                except Exception:
+                    pass
+        # Convert children_age list to comma-separated string if provided
+        if isinstance(data.get("children_age"), list):
+            try:
+                data["children_age"] = ",".join(str(x) for x in data["children_age"])
+            except Exception:
+                pass
+        async with NeonDatabase().get_session() as session:
+            updated_extraction = await self.extraction_repo.update(session, extraction_id=extraction_id, update_data=data)
+
 
 
