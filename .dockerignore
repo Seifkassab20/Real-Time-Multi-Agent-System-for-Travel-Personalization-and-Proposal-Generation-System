@@ -1,0 +1,99 @@
+# Git
+.git
+.gitignore
+.github
+
+# Python
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+.myenv
+myenv
+.venv
+venv
+ENV
+env
+.eggs
+*.egg-info
+*.egg
+.pytest_cache
+.coverage
+htmlcov
+
+# Node
+node_modules
+.npm
+.pnpm-store
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+Dockerfile*
+docker-compose*
+.docker
+
+# DVC
+.dvc
+.dvcignore
+
+# Logs
+*.log
+logs
+
+# Test files
+test/
+test_data/
+*.ipynb
+.ipynb_checkpoints
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Secrets (be careful - .env is copied intentionally)
+*.pem
+*.key
+
+# Large files that should be downloaded at runtime
+models_cache/
+*.pt
+*.bin
+*.safetensors
+.env
+*.pyc
+__pycache__
+__pycache__
+myenv
+ASR/__pycache__
+extraction_agent/__pycache__
+models_cache
+data/*
+!data/**/*.dvc
+.dvc/cache
+dvc_storage/
+Project_Data_Flow_Documentation.ipynb
+activity_recommendation_agent.log
+hotel_recommendation_agent.log
+scraper.log
+.kiro  ss
+.DS_Store
+test_data
+*.ipynb

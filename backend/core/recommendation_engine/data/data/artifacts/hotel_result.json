@@ -1,0 +1,127 @@
+{
+  "status": "OK",
+  "hotel_budget": 242181.0,
+  "max_price_per_night": 7500.0,
+  "recommendations": [
+    {
+      "name": "GOLDEN PYRAMiDS HUT HOTEL",
+      "city": "Cairo",
+      "price_per_night": 4157.0,
+      "rating": 10.0,
+      "link": "https://www.booking.com/hotel/eg/magic-hostel-pyramid.html?aid=304142&label=gen173nr-10CAQoggJCDHNlYXJjaF9jYWlyb0gzWARoQ4gBAZgBM7gBF8gBDNgBA-gBAfgBAYgCAagCAbgCzvWRygbAAgHSAiRhZGFmNWYzNi1kODA5LTQwMjUtYWQ0ZS03NzllOGM4NWNlMzLYAgHgAgE&ucfs=1&arphpl=1&checkin=2025-12-20&checkout=2025-12-23&group_adults=2&req_adults=2&no_rooms=2&group_children=2&req_children=2&age=3&req_age=3&age=7&req_age=7&hpos=4&hapos=4&sr_order=popularity&nflt=ht_id%3D204&srpvid=91359b67fb210087&srepoch=1766095585&all_sr_blocks=1459594005_417268856_3_42_0%2C1459594001_417268856_1_42_0&highlighted_blocks=1459594005_417268856_3_42_0%2C1459594001_417268856_1_42_0&matching_block_id=1459594005_417268856_3_42_0&sr_pri_blocks=1459594005_417268856_3_42_0__4961%2C1459594001_417268856_1_42_0__3773&from=searchresults",
+      "reason": "High rating and fits within your hotel budget"
+    },
+    {
+      "name": "Giza pyramids view & jacuzii",
+      "city": "Cairo",
+      "price_per_night": 3427.0,
+      "rating": 9.2,
+      "link": "https://www.booking.com/hotel/eg/giza-pyramids-view-amp-jacuzii.html?aid=304142&label=gen173nr-10CAQoggJCDHNlYXJjaF9jYWlyb0gzWARoQ4gBAZgBM7gBF8gBDNgBA-gBAfgBAYgCAagCAbgCzvWRygbAAgHSAiRhZGFmNWYzNi1kODA5LTQwMjUtYWQ0ZS03NzllOGM4NWNlMzLYAgHgAgE&ucfs=1&arphpl=1&checkin=2025-12-20&checkout=2025-12-23&group_adults=2&req_adults=2&no_rooms=2&group_children=2&req_children=2&age=3&req_age=3&age=7&req_age=7&hpos=3&hapos=28&sr_order=popularity&nflt=ht_id%3D204&srpvid=91359b67fb210087&srepoch=1766095583&all_sr_blocks=1457388403_417075792_2_1_0%2C1457388403_417075792_2_1_0&highlighted_blocks=1457388403_417075792_2_1_0%2C1457388403_417075792_2_1_0&matching_block_id=1457388403_417075792_2_1_0&sr_pri_blocks=1457388403_417075792_2_1_0__3600%2C1457388403_417075792_2_1_0__3600&from=searchresults",
+      "reason": "High rating and fits within your hotel budget"
+    },
+    {
+      "name": "Pyramids Mystery Inn",
+      "city": "Cairo",
+      "price_per_night": 6876.0,
+      "rating": 9.0,
+      "link": "https://www.booking.com/hotel/eg/museum-pyramids-inn.html?aid=304142&label=gen173nr-10CAQoggJCDHNlYXJjaF9jYWlyb0gzWARoQ4gBAZgBM7gBF8gBDNgBA-gBAfgBAYgCAagCAbgCzvWRygbAAgHSAiRhZGFmNWYzNi1kODA5LTQwMjUtYWQ0ZS03NzllOGM4NWNlMzLYAgHgAgE&ucfs=1&arphpl=1&checkin=2025-12-20&checkout=2025-12-23&group_adults=2&req_adults=2&no_rooms=2&group_children=2&req_children=2&age=3&req_age=3&age=7&req_age=7&hpos=24&hapos=74&sr_order=popularity&nflt=ht_id%3D204&srpvid=91359b67fb210087&srepoch=1766095585&all_sr_blocks=1519518303_424541304_1_0_0%2C1519518303_424541304_1_0_0&highlighted_blocks=1519518303_424541304_1_0_0%2C1519518303_424541304_1_0_0&matching_block_id=1519518303_424541304_1_0_0&sr_pri_blocks=1519518303_424541304_1_0_0__7223%2C1519518303_424541304_1_0_0__7223&from=searchresults",
+      "reason": "High rating and fits within your hotel budget"
+    },
+    {
+      "name": "Turquoise Pyramids Gate Hotel City Centre",
+      "city": "Cairo",
+      "price_per_night": 4811.0,
+      "rating": 8.7,
+      "link": "https://www.booking.com/hotel/eg/turquoise-pyramids-gate.html?aid=304142&label=gen173nr-10CAQoggJCDHNlYXJjaF9jYWlyb0gzWARoQ4gBAZgBM7gBF8gBDNgBA-gBAfgBAYgCAagCAbgCzvWRygbAAgHSAiRhZGFmNWYzNi1kODA5LTQwMjUtYWQ0ZS03NzllOGM4NWNlMzLYAgHgAgE&ucfs=1&arphpl=1&checkin=2025-12-20&checkout=2025-12-23&group_adults=2&req_adults=2&no_rooms=2&group_children=2&req_children=2&age=3&req_age=3&age=7&req_age=7&hpos=16&hapos=66&sr_order=popularity&nflt=ht_id%3D204&srpvid=91359b67fb210087&srepoch=1766095585&all_sr_blocks=1282030801_401117680_2_2_0%2C1282030801_401117680_2_2_0&highlighted_blocks=1282030801_401117680_2_2_0%2C1282030801_401117680_2_2_0&matching_block_id=1282030801_401117680_2_2_0&sr_pri_blocks=1282030801_401117680_2_2_0__5054%2C1282030801_401117680_2_2_0__5054&from=searchresults",
+      "reason": "High rating and fits within your hotel budget"
+    },
+    {
+      "name": "Anubis Pyramids View",
+      "city": "Cairo",
+      "price_per_night": 5353.0,
+      "rating": 8.4,
+      "link": "https://www.booking.com/hotel/eg/anubis-pyramids-view.html?aid=304142&label=gen173nr-10CAQoggJCDHNlYXJjaF9jYWlyb0gzWARoQ4gBAZgBM7gBF8gBDNgBA-gBAfgBAYgCAagCAbgCzvWRygbAAgHSAiRhZGFmNWYzNi1kODA5LTQwMjUtYWQ0ZS03NzllOGM4NWNlMzLYAgHgAgE&ucfs=1&arphpl=1&checkin=2025-12-20&checkout=2025-12-23&group_adults=2&req_adults=2&no_rooms=2&group_children=2&req_children=2&age=3&req_age=3&age=7&req_age=7&hpos=12&hapos=62&sr_order=popularity&nflt=ht_id%3D204&srpvid=91359b67fb210087&srepoch=1766095585&all_sr_blocks=1239638601_416428572_1_1_0%2C1239638601_416428572_1_1_0&highlighted_blocks=1239638601_416428572_1_1_0%2C1239638601_416428572_1_1_0&matching_block_id=1239638601_416428572_1_1_0&sr_pri_blocks=1239638601_416428572_1_1_0__5623%2C1239638601_416428572_1_1_0__5623&from=searchresults",
+      "reason": "High rating and fits within your hotel budget"
+    },
+    {
+      "name": "East Pyramids Hotel",
+      "city": "Cairo",
+      "price_per_night": 7283.0,
+      "rating": 8.3,
+      "link": "https://www.booking.com/hotel/eg/east-pyramids-view.html?aid=304142&label=gen173nr-10CAQoggJCDHNlYXJjaF9jYWlyb0gzWARoQ4gBAZgBM7gBF8gBDNgBA-gBAfgBAYgCAagCAbgCzvWRygbAAgHSAiRhZGFmNWYzNi1kODA5LTQwMjUtYWQ0ZS03NzllOGM4NWNlMzLYAgHgAgE&ucfs=1&arphpl=1&checkin=2025-12-20&checkout=2025-12-23&group_adults=2&req_adults=2&no_rooms=2&group_children=2&req_children=2&age=3&req_age=3&age=7&req_age=7&hpos=23&hapos=23&sr_order=popularity&nflt=ht_id%3D204&srpvid=91359b67fb210087&srepoch=1766095585&all_sr_blocks=1337363004_406188301_0_41_0%2C1337363004_406188301_0_41_0&highlighted_blocks=1337363004_406188301_0_41_0%2C1337363004_406188301_0_41_0&matching_block_id=1337363004_406188301_0_41_0&sr_pri_blocks=1337363004_406188301_0_41_0__7650%2C1337363004_406188301_0_41_0__7650&from=searchresults",
+      "reason": "High rating and fits within your hotel budget"
+    },
+    {
+      "name": "Habu Pyramids View Hotel",
+      "city": "Cairo",
+      "price_per_night": 5372.0,
+      "rating": 8.2,
+      "link": "https://www.booking.com/hotel/eg/habu-pyramids-view.html?aid=304142&label=gen173nr-10CAQoggJCDHNlYXJjaF9jYWlyb0gzWARoQ4gBAZgBM7gBF8gBDNgBA-gBAfgBAYgCAagCAbgCzvWRygbAAgHSAiRhZGFmNWYzNi1kODA5LTQwMjUtYWQ0ZS03NzllOGM4NWNlMzLYAgHgAgE&ucfs=1&arphpl=1&checkin=2025-12-20&checkout=2025-12-23&group_adults=2&req_adults=2&no_rooms=2&group_children=2&req_children=2&age=3&req_age=3&age=7&req_age=7&hpos=1&hapos=51&sr_order=popularity&nflt=ht_id%3D204&srpvid=91359b67fb210087&srepoch=1766095585&all_sr_blocks=1260686621_399580753_1_41_0_805962%2C1260686621_399580753_1_41_0_805962&highlighted_blocks=1260686621_399580753_1_41_0_805962%2C1260686621_399580753_1_41_0_805962&matching_block_id=1260686621_399580753_1_41_0_805962&sr_pri_blocks=1260686621_399580753_1_41_0_805962_5643%2C1260686621_399580753_1_41_0_805962_5643&from=searchresults",
+      "reason": "High rating and fits within your hotel budget"
+    },
+    {
+      "name": "Kemet Pyramids INN",
+      "city": "Cairo",
+      "price_per_night": 3856.0,
+      "rating": 8.0,
+      "link": "https://www.booking.com/hotel/eg/kemet-pyramids.html?aid=304142&label=gen173nr-10CAQoggJCDHNlYXJjaF9jYWlyb0gzWARoQ4gBAZgBM7gBF8gBDNgBA-gBAfgBAYgCAagCAbgCzvWRygbAAgHSAiRhZGFmNWYzNi1kODA5LTQwMjUtYWQ0ZS03NzllOGM4NWNlMzLYAgHgAgE&ucfs=1&arphpl=1&checkin=2025-12-20&checkout=2025-12-23&group_adults=2&req_adults=2&no_rooms=2&group_children=2&req_children=2&age=3&req_age=3&age=7&req_age=7&hpos=8&hapos=58&sr_order=popularity&nflt=ht_id%3D204&srpvid=91359b67fb210087&srepoch=1766095585&all_sr_blocks=1046288304_420651949_2_2_0%2C1046288308_420651949_2_2_0&highlighted_blocks=1046288304_420651949_2_2_0%2C1046288308_420651949_2_2_0&matching_block_id=1046288304_420651949_2_2_0&sr_pri_blocks=1046288304_420651949_2_2_0__4050%2C1046288308_420651949_2_2_0__4050&from=searchresults",
+      "reason": "High rating and fits within your hotel budget"
+    },
+    {
+      "name": "pYramids View",
+      "city": "Cairo",
+      "price_per_night": 7111.0,
+      "rating": 7.9,
+      "link": "https://www.booking.com/hotel/eg/sia.html?aid=304142&label=gen173nr-10CAQoggJCDHNlYXJjaF9jYWlyb0gzWARoQ4gBAZgBM7gBF8gBDNgBA-gBAfgBAYgCAagCAbgCzvWRygbAAgHSAiRhZGFmNWYzNi1kODA5LTQwMjUtYWQ0ZS03NzllOGM4NWNlMzLYAgHgAgE&ucfs=1&arphpl=1&checkin=2025-12-20&checkout=2025-12-23&group_adults=2&req_adults=2&no_rooms=2&group_children=2&req_children=2&age=3&req_age=3&age=7&req_age=7&hpos=7&hapos=32&sr_order=popularity&nflt=ht_id%3D204&srpvid=91359b67fb210087&srepoch=1766095583&all_sr_blocks=1507039201_422460177_2_1_0_1245401%2C1507039201_422460177_2_1_0_1245401&highlighted_blocks=1507039201_422460177_2_1_0_1245401%2C1507039201_422460177_2_1_0_1245401&matching_block_id=1507039201_422460177_2_1_0_1245401&sr_pri_blocks=1507039201_422460177_2_1_0_1245401_7470%2C1507039201_422460177_2_1_0_1245401_7470&from=searchresults",
+      "reason": "High rating and fits within your hotel budget"
+    },
+    {
+      "name": "Explore Stars Pyramids View",
+      "city": "Cairo",
+      "price_per_night": 3798.0,
+      "rating": 7.8,
+      "link": "https://www.booking.com/hotel/eg/new-pyramids-star-inn.html?aid=304142&label=gen173nr-10CAQoggJCDHNlYXJjaF9jYWlyb0gzWARoQ4gBAZgBM7gBF8gBDNgBA-gBAfgBAYgCAagCAbgCzvWRygbAAgHSAiRhZGFmNWYzNi1kODA5LTQwMjUtYWQ0ZS03NzllOGM4NWNlMzLYAgHgAgE&ucfs=1&arphpl=1&checkin=2025-12-20&checkout=2025-12-23&group_adults=2&req_adults=2&no_rooms=2&group_children=2&req_children=2&age=3&req_age=3&age=7&req_age=7&hpos=13&hapos=13&sr_order=popularity&nflt=ht_id%3D204&srpvid=91359b67fb210087&srepoch=1766095585&all_sr_blocks=1196130803_391898822_0_32_0%2C1196130803_391898822_0_32_0&highlighted_blocks=1196130803_391898822_0_32_0%2C1196130803_391898822_0_32_0&matching_block_id=1196130803_391898822_0_32_0&sr_pri_blocks=1196130803_391898822_0_32_0__3990%2C1196130803_391898822_0_32_0__3990&from=searchresults",
+      "reason": "High rating and fits within your hotel budget"
+    },
+    {
+      "name": "Pyramids heart view hotel",
+      "city": "Cairo",
+      "price_per_night": 6354.0,
+      "rating": 7.8,
+      "link": "https://www.booking.com/hotel/eg/pyramids-heart-view.html?aid=304142&label=gen173nr-10CAQoggJCDHNlYXJjaF9jYWlyb0gzWARoQ4gBAZgBM7gBF8gBDNgBA-gBAfgBAYgCAagCAbgCzvWRygbAAgHSAiRhZGFmNWYzNi1kODA5LTQwMjUtYWQ0ZS03NzllOGM4NWNlMzLYAgHgAgE&ucfs=1&arphpl=1&checkin=2025-12-20&checkout=2025-12-23&group_adults=2&req_adults=2&no_rooms=2&group_children=2&req_children=2&age=3&req_age=3&age=7&req_age=7&hpos=16&hapos=41&sr_order=popularity&nflt=ht_id%3D204&srpvid=91359b67fb210087&srepoch=1766095583&all_sr_blocks=1168505101_414649591_2_1_0%2C1168505101_414649591_1_1_0&highlighted_blocks=1168505101_414649591_2_1_0%2C1168505101_414649591_1_1_0&matching_block_id=1168505101_414649591_2_1_0&sr_pri_blocks=1168505101_414649591_2_1_0__7215%2C1168505101_414649591_1_1_0__6133&from=searchresults",
+      "reason": "High rating and fits within your hotel budget"
+    },
+    {
+      "name": "New Location Hotel",
+      "city": "Cairo",
+      "price_per_night": 6345.0,
+      "rating": 7.7,
+      "link": "https://www.booking.com/hotel/eg/night.html?aid=304142&label=gen173nr-10CAQoggJCDHNlYXJjaF9jYWlyb0gzWARoQ4gBAZgBM7gBF8gBDNgBA-gBAfgBAYgCAagCAbgCzvWRygbAAgHSAiRhZGFmNWYzNi1kODA5LTQwMjUtYWQ0ZS03NzllOGM4NWNlMzLYAgHgAgE&ucfs=1&arphpl=1&checkin=2025-12-20&checkout=2025-12-23&group_adults=2&req_adults=2&no_rooms=2&group_children=2&req_children=2&age=3&req_age=3&age=7&req_age=7&hpos=18&hapos=18&sr_order=popularity&nflt=ht_id%3D204&srpvid=91359b67fb210087&srepoch=1766095585&all_sr_blocks=1489370606_420584706_3_1_0_1192570%2C1489370601_420584706_0_1_0_1192570&highlighted_blocks=1489370606_420584706_3_1_0_1192570%2C1489370601_420584706_0_1_0_1192570&matching_block_id=1489370606_420584706_3_1_0_1192570&sr_pri_blocks=1489370606_420584706_3_1_0_1192570_7993%2C1489370601_420584706_0_1_0_1192570_5337&from=searchresults",
+      "reason": "High rating and fits within your hotel budget"
+    },
+    {
+      "name": "Horus Horizon INN",
+      "city": "Cairo",
+      "price_per_night": 4177.0,
+      "rating": 7.6,
+      "link": "https://www.booking.com/hotel/eg/cure-pyramids-inn.html?aid=304142&label=gen173nr-10CAQoggJCDHNlYXJjaF9jYWlyb0gzWARoQ4gBAZgBM7gBF8gBDNgBA-gBAfgBAYgCAagCAbgCzvWRygbAAgHSAiRhZGFmNWYzNi1kODA5LTQwMjUtYWQ0ZS03NzllOGM4NWNlMzLYAgHgAgE&ucfs=1&arphpl=1&checkin=2025-12-20&checkout=2025-12-23&group_adults=2&req_adults=2&no_rooms=2&group_children=2&req_children=2&age=3&req_age=3&age=7&req_age=7&hpos=23&hapos=73&sr_order=popularity&nflt=ht_id%3D204&srpvid=91359b67fb210087&srepoch=1766095585&all_sr_blocks=1379283911_411198527_3_41_0_1074475%2C1379283912_411198527_1_41_0_1074475&highlighted_blocks=1379283911_411198527_3_41_0_1074475%2C1379283912_411198527_1_41_0_1074475&matching_block_id=1379283911_411198527_3_41_0_1074475&sr_pri_blocks=1379283911_411198527_3_41_0_1074475_4875%2C1379283912_411198527_1_41_0_1074475_3900&from=searchresults",
+      "reason": "High rating and fits within your hotel budget"
+    },
+    {
+      "name": "Khattab Pyramids Hotel",
+      "city": "Cairo",
+      "price_per_night": 7283.0,
+      "rating": 7.4,
+      "link": "https://www.booking.com/hotel/eg/khattab-pyramids.html?aid=304142&label=gen173nr-10CAQoggJCDHNlYXJjaF9jYWlyb0gzWARoQ4gBAZgBM7gBF8gBDNgBA-gBAfgBAYgCAagCAbgCzvWRygbAAgHSAiRhZGFmNWYzNi1kODA5LTQwMjUtYWQ0ZS03NzllOGM4NWNlMzLYAgHgAgE&ucfs=1&arphpl=1&checkin=2025-12-20&checkout=2025-12-23&group_adults=2&req_adults=2&no_rooms=2&group_children=2&req_children=2&age=3&req_age=3&age=7&req_age=7&hpos=9&hapos=59&sr_order=popularity&nflt=ht_id%3D204&srpvid=91359b67fb210087&srepoch=1766095585&all_sr_blocks=1132883702_409404681_2_41_0%2C1132883702_409404681_2_41_0&highlighted_blocks=1132883702_409404681_2_41_0%2C1132883702_409404681_2_41_0&matching_block_id=1132883702_409404681_2_41_0&sr_pri_blocks=1132883702_409404681_2_41_0__7650%2C1132883702_409404681_2_41_0__7650&from=searchresults",
+      "reason": "High rating and fits within your hotel budget"
+    },
+    {
+      "name": "Town View Hotel",
+      "city": "Cairo",
+      "price_per_night": 4524.0,
+      "rating": 7.0,
+      "link": "https://www.booking.com/hotel/eg/town-view-cairo1.html?aid=304142&label=gen173nr-10CAQoggJCDHNlYXJjaF9jYWlyb0gzWARoQ4gBAZgBM7gBF8gBDNgBA-gBAfgBAYgCAagCAbgCzvWRygbAAgHSAiRhZGFmNWYzNi1kODA5LTQwMjUtYWQ0ZS03NzllOGM4NWNlMzLYAgHgAgE&ucfs=1&arphpl=1&checkin=2025-12-20&checkout=2025-12-23&group_adults=2&req_adults=2&no_rooms=2&group_children=2&req_children=2&age=3&req_age=3&age=7&req_age=7&hpos=17&hapos=42&sr_order=popularity&nflt=ht_id%3D204&srpvid=91359b67fb210087&srepoch=1766095583&all_sr_blocks=841090801_414575040_0_1_0%2C841090802_414575040_0_1_0&highlighted_blocks=841090801_414575040_0_1_0%2C841090802_414575040_0_1_0&matching_block_id=841090801_414575040_0_1_0&sr_pri_blocks=841090801_414575040_0_1_0__4536%2C841090802_414575040_0_1_0__4968&from=searchresults",
+      "reason": "High rating and fits within your hotel budget"
+    }
+  ]
+}

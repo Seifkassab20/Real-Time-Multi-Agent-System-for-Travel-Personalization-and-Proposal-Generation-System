@@ -1,0 +1,80 @@
+{
+  "status": "OK",
+  "days": 3,
+  "activities_per_day": 3,
+  "daily_budget": 4166.666666666667,
+  "recommendations": [
+    {
+      "name": "V TERRACE MALL",
+      "category": "mall",
+      "city": "Cairo",
+      "rating": 4.9,
+      "estimated_cost": 0,
+      "reason": "Highly rated mall in Cairo"
+    },
+    {
+      "name": "5A shopping mall",
+      "category": "mall",
+      "city": "Cairo",
+      "rating": 4.7,
+      "estimated_cost": 0,
+      "reason": "Highly rated mall in Cairo"
+    },
+    {
+      "name": "Mall of Arabia",
+      "category": "mall",
+      "city": "Giza",
+      "rating": 4.6,
+      "estimated_cost": 0,
+      "reason": "Highly rated mall in Giza"
+    },
+    {
+      "name": "The National Museum of Egyptian Civilization",
+      "category": "museum",
+      "city": "Cairo",
+      "rating": 4.7,
+      "estimated_cost": 350,
+      "reason": "Highly rated museum in Cairo"
+    },
+    {
+      "name": "Madinaty Central Park",
+      "category": "park",
+      "city": "Cairo",
+      "rating": 4.6,
+      "estimated_cost": 100,
+      "reason": "Highly rated park in Cairo"
+    },
+    {
+      "name": "The Park at MoA",
+      "category": "park",
+      "city": "Giza",
+      "rating": 4.6,
+      "estimated_cost": 100,
+      "reason": "Highly rated park in Giza"
+    },
+    {
+      "name": "COVA Coffee Store",
+      "category": "cafe",
+      "city": "Cairo",
+      "rating": 4.6,
+      "estimated_cost": 250,
+      "reason": "Highly rated cafe in Cairo"
+    },
+    {
+      "name": "Stage El Nile",
+      "category": "cafe",
+      "city": "Giza",
+      "rating": 4.6,
+      "estimated_cost": 250,
+      "reason": "Highly rated cafe in Giza"
+    },
+    {
+      "name": "Mohamed Mahmoud Khalil Museum",
+      "category": "museum",
+      "city": "Giza",
+      "rating": 4.6,
+      "estimated_cost": 350,
+      "reason": "Highly rated museum in Giza"
+    }
+  ]
+}
