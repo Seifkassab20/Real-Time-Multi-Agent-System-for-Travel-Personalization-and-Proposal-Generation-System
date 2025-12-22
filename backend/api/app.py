@@ -10,6 +10,12 @@ import os
 import subprocess
 import subprocess
 from datetime import datetime
+from backend.core.recommendation_engine.recommendation_orchestrator import (
+    build_user_profile_from_extraction,
+    merge_value,
+    MERGE_RULES,
+    recommend
+)
 
 
 def convert_webm_to_wav(input_path: str, output_path: str) -> bool:
@@ -203,6 +209,15 @@ async def get_profile_questions(call_id: str):
             error=str(e)
         )
 
+async def safe_send_json(websocket: WebSocket, data: dict) -> bool:
+    """Safely send JSON over websocket, return False if connection is closed."""
+    try:
+        await websocket.send_json(data)
+        return True
+    except (WebSocketDisconnect, RuntimeError, Exception) as e:
+        # Connection already closed, don't log errors
+        return False
+
 @app.websocket("/ws/stream", name="websocket_endpoint")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
@@ -218,6 +233,7 @@ async def websocket_endpoint(websocket: WebSocket):
     extraction_id = None  # Track extraction_id across segments
     audio_buffer = []
     header_chunk = None  # Store the first chunk which contains WebM header
+    ws_connected = True  # Track connection state
     
     # Create a temporary directory for audio files
     temp_dir = tempfile.mkdtemp()
@@ -254,7 +270,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 except Exception as e:
                     print(f"Error creating call record: {e}")
                 
-                await websocket.send_json({
+                ws_connected = await safe_send_json(websocket, {
                     "type": "call_started",
                     "call_id": call_id,
                     "message": f"Call started with {client_info['name']}"
@@ -279,7 +295,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     # Convert WebM to WAV for ASR processing
                     if not convert_webm_to_wav(temp_webm_path, temp_wav_path):
                         print(f"Failed to convert audio segment {segment_count}")
-                        await websocket.send_json({
+                        ws_connected = await safe_send_json(websocket, {
                             "type": "error",
                             "message": "Audio conversion failed. Please ensure ffmpeg is installed."
                         })
@@ -293,11 +309,13 @@ async def websocket_endpoint(websocket: WebSocket):
                         async for asr_segment, seg_call_id in asr_service.stream_audio(temp_wav_path):
                             segment_count += 1
                             
-                            await websocket.send_json({
+                            if not await safe_send_json(websocket, {
                                 "type": "transcript",
                                 "text": asr_segment.corrected_text,
                                 "segment": segment_count
-                            })
+                            }):
+                                ws_connected = False
+                                break
 
                             # 2. Extract
                             transcript_obj = TranscriptSegment(
@@ -319,22 +337,67 @@ async def websocket_endpoint(websocket: WebSocket):
                                         extraction_id = extraction_result[1]
                                 else:
                                     extraction_data = extraction_result
+                                
+                                # Merge extraction data into final_profile
+                                for key, rule in MERGE_RULES.items():
+                                    if key in extraction_data:
+                                        final_profile[key] = merge_value(
+                                            final_profile.get(key), 
+                                            extraction_data.get(key), 
+                                            rule
+                                        )
                                     
                                 extraction = Agent_output(**extraction_data)
                                 
                                 # Notify frontend that extraction is done so it can fetch updated questions
-                                await websocket.send_json({
+                                if not await safe_send_json(websocket, {
                                     "type": "extraction_done",
                                     "call_id": call_id,
                                     "segment": segment_count,
                                     "message": "Extraction completed successfully"
-                                })
+                                }):
+                                    ws_connected = False
+                                    break
+                                
+                                # 3. Generate recommendations if we have enough data
+                                try:
+                                    # Build user profile from accumulated extraction data
+                                    user_profile = build_user_profile_from_extraction(final_profile)
+                                    
+                                    # Run recommendation engine
+                                    plan = recommend(user_profile)
+                                    
+                                    if plan and plan.get("status") == "OK":
+                                        # Format recommendations for frontend
+                                        recommendations_payload = {
+                                            "type": "recommendations",
+                                            "call_id": call_id,
+                                            "segment": segment_count,
+                                            "hotel": plan.get("hotel"),
+                                            "itinerary": plan.get("itinerary"),
+                                            "budget_breakdown": plan.get("budget_breakdown")
+                                        }
+                                        if await safe_send_json(websocket, recommendations_payload):
+                                            print(f"Recommendations sent for segment {segment_count}")
+                                            print(recommendations_payload)
+                                        else:
+                                            ws_connected = False
+                                            break
+                                except Exception as rec_error:
+                                    print(f"Recommendation error: {rec_error}")
+                                    # Don't fail extraction if recommendations fail
+                                    
                             except Exception as e:
                                 print(f"Extraction error: {e}")
                                 continue
+                            
+                            # Break outer loop if disconnected
+                            if not ws_connected:
+                                break
+                                
                     except Exception as e:
                         print(f"ASR Error: {e}")
-                        await websocket.send_json({
+                        ws_connected = await safe_send_json(websocket, {
                             "type": "error",
                             "message": f"Transcription error: {str(e)}"
                         })
@@ -351,11 +414,13 @@ async def websocket_endpoint(websocket: WebSocket):
                 async for asr_segment, seg_call_id in asr_service.stream_audio(audio_path):
                     segment_count += 1
                     
-                    await websocket.send_json({
+                    if not await safe_send_json(websocket, {
                         "type": "transcript",
                         "text": asr_segment.corrected_text,
                         "segment": segment_count
-                    })
+                    }):
+                        ws_connected = False
+                        break
 
                     # 2. Extract
                     transcript_obj = TranscriptSegment(
@@ -384,14 +449,22 @@ async def websocket_endpoint(websocket: WebSocket):
 
     except WebSocketDisconnect:
         print("Client disconnected")
+        ws_connected = False
     except Exception as e:
-        print(f"Error: {e}")
-        await websocket.close()
+        print(f"WebSocket error: {e}")
+        ws_connected = False
     finally:
         # Clean up temp directory
         import shutil
         if os.path.exists(temp_dir):
             shutil.rmtree(temp_dir)
+        
+        # Only try to close if still connected
+        if ws_connected:
+            try:
+                await websocket.close()
+            except Exception:
+                pass  # Already closed
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

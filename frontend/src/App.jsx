@@ -11,7 +11,10 @@ import {
   WifiOff,
   Mic,
   RefreshCw,
-  MessageCircleQuestion
+  MessageCircleQuestion,
+  Hotel,
+  Sparkles,
+  Coffee
 } from 'lucide-react';
 
 const WEBSOCKET_URL = 'ws://localhost:8000/ws/stream';
@@ -27,6 +30,7 @@ const TravelDashboard = () => {
   const [profileQuestions, setProfileQuestions] = useState([]);
   const [questionsLoading, setQuestionsLoading] = useState(false);
   const [questionsError, setQuestionsError] = useState(null);
+  const [recommendations, setRecommendations] = useState(null);
   const currentCallIdRef = useRef(null);
 
   const mediaStreamRef = useRef(null);
@@ -141,6 +145,15 @@ const TravelDashboard = () => {
           }
         } else if (message.type === 'profile_update') {
           console.log('Profile updated:', message.profile);
+        } else if (message.type === 'recommendations') {
+          console.log('Recommendations received:', message);
+          setRecommendations({
+            hotel: message.hotel,
+            itinerary: message.itinerary,
+            budget_breakdown: message.budget_breakdown,
+            lastUpdated: new Date().toLocaleTimeString(),
+            segment: message.segment
+          });
         } else if (message.type === 'recommendation') {
           console.log('Recommendation:', message.data);
         }
@@ -563,47 +576,115 @@ const TravelDashboard = () => {
         {/* Right Column (Span 1) - AI Suggestions */}
         <div className="lg:col-span-1">
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 h-full">
-            <h2 className="text-xl font-bold text-slate-800 mb-6">AI Suggestions</h2>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-amber-500" />
+                <h2 className="text-xl font-bold text-slate-800">AI Suggestions</h2>
+              </div>
+              {recommendations?.lastUpdated && (
+                <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full flex items-center gap-1">
+                  <RefreshCw className="w-3 h-3" />
+                  Updated {recommendations.lastUpdated}
+                </span>
+              )}
+            </div>
 
             <div className="space-y-4">
-              {/* Suggestion 1 */}
-              <div className="border border-gray-100 rounded-xl p-5 hover:border-green-200 hover:shadow-lg transition-all cursor-pointer group">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-bold text-slate-800 text-lg group-hover:text-green-700 transition-colors">Sunrise at Abu Simbel</h3>
-                  <span className="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">Perfect Match</span>
+              {/* Loading/Empty state */}
+              {!recommendations && (
+                <div className="text-center py-8 text-slate-400 border border-dashed border-slate-200 rounded-xl">
+                  <Sparkles className="w-10 h-10 mx-auto mb-3 opacity-50" />
+                  <p className="text-sm font-medium text-slate-500">Waiting for recommendations</p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    {isCallActive
+                      ? "Recommendations will appear as we learn more about your trip"
+                      : "Start a call to get personalized suggestions"}
+                  </p>
                 </div>
-                <p className="text-sm text-gray-500 mb-4 leading-relaxed">Private sunrise tour for photographers. Less crowded, stunning light for your portfolio.</p>
-                <div className="flex justify-between items-center pt-2 border-t border-gray-50">
-                  <p className="text-sm font-semibold text-slate-600">~$180/person</p>
-                  <MoreHorizontal className="text-gray-400 w-5 h-5" />
-                </div>
-              </div>
+              )}
 
-              {/* Suggestion 2 */}
-              <div className="border border-gray-100 rounded-xl p-5 hover:border-blue-200 hover:shadow-lg transition-all cursor-pointer group">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-bold text-slate-800 text-lg group-hover:text-blue-700 transition-colors">Boutique Stay: Sofitel Legend</h3>
-                  <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">Recommended</span>
+              {/* Hotel Recommendation */}
+              {recommendations?.hotel && (
+                <div className="border border-gray-100 rounded-xl p-5 hover:border-blue-200 hover:shadow-lg transition-all cursor-pointer group">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex items-center gap-2">
+                      <Hotel className="w-4 h-4 text-blue-600" />
+                      <h3 className="font-bold text-slate-800 text-lg group-hover:text-blue-700 transition-colors">
+                        {recommendations.hotel.name || 'Recommended Hotel'}
+                      </h3>
+                    </div>
+                    <span className="bg-blue-100 text-blue-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">Hotel</span>
+                  </div>
+                  {recommendations.hotel.location && (
+                    <p className="text-sm text-gray-500 mb-2 flex items-center gap-1">
+                      <MapPin className="w-3 h-3" />
+                      {recommendations.hotel.location}
+                    </p>
+                  )}
+                  {recommendations.hotel.description && (
+                    <p className="text-sm text-gray-500 mb-4 leading-relaxed line-clamp-2">
+                      {recommendations.hotel.description}
+                    </p>
+                  )}
+                  <div className="flex justify-between items-center pt-2 border-t border-gray-50">
+                    <p className="text-sm font-semibold text-slate-600">
+                      {recommendations.hotel.price ? `~${recommendations.hotel.price}/night` : 'Price TBD'}
+                    </p>
+                    <MoreHorizontal className="text-gray-400 w-5 h-5" />
+                  </div>
                 </div>
-                <p className="text-sm text-gray-500 mb-4 leading-relaxed">Historic luxury on the Nile. Authentic Egyptian architecture with modern amenities.</p>
-                <div className="flex justify-between items-center pt-2 border-t border-gray-50">
-                  <p className="text-sm font-semibold text-slate-600">~$220/night</p>
-                  <MoreHorizontal className="text-gray-400 w-5 h-5" />
-                </div>
-              </div>
+              )}
 
-              {/* Suggestion 3 */}
-              <div className="border border-gray-100 rounded-xl p-5 hover:border-purple-200 hover:shadow-lg transition-all cursor-pointer group">
-                <div className="flex justify-between items-start mb-2">
-                  <h3 className="font-bold text-slate-800 text-lg group-hover:text-purple-700 transition-colors">Private Felucca Sunset</h3>
-                </div>
-                <p className="text-sm text-gray-500 mb-4 leading-relaxed">Traditional sailboat ride. Golden hour photography opportunity on the river.</p>
-                <div className="flex justify-between items-center pt-2 border-t border-gray-50">
-                  <p className="text-sm font-semibold text-slate-600">~$45/person</p>
-                  <MoreHorizontal className="text-gray-400 w-5 h-5" />
-                </div>
-              </div>
+              {/* Activities from Itinerary */}
+              {recommendations?.itinerary && Object.entries(recommendations.itinerary).slice(0, 2).map(([day, activities]) => (
+                activities.filter(item => item.type === 'activity').slice(0, 2).map((activity, idx) => (
+                  <div key={`${day}-${idx}`} className="border border-gray-100 rounded-xl p-5 hover:border-green-200 hover:shadow-lg transition-all cursor-pointer group">
+                    <div className="flex justify-between items-start mb-2">
+                      <h3 className="font-bold text-slate-800 text-lg group-hover:text-green-700 transition-colors">
+                        {activity.name || 'Activity'}
+                      </h3>
+                      <span className="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wider">
+                        {activity.category || day}
+                      </span>
+                    </div>
+                    {activity.description && (
+                      <p className="text-sm text-gray-500 mb-4 leading-relaxed line-clamp-2">
+                        {activity.description}
+                      </p>
+                    )}
+                    <div className="flex justify-between items-center pt-2 border-t border-gray-50">
+                      <p className="text-sm font-semibold text-slate-600">
+                        {activity.price ? `~${activity.price}` : 'Free'}
+                      </p>
+                      <MoreHorizontal className="text-gray-400 w-5 h-5" />
+                    </div>
+                  </div>
+                ))
+              ))}
 
+              {/* Budget Summary */}
+              {recommendations?.budget_breakdown && (
+                <div className="border border-gray-100 rounded-xl p-4 bg-gradient-to-br from-amber-50 to-orange-50">
+                  <div className="flex items-center gap-2 mb-3">
+                    <DollarSign className="w-4 h-4 text-amber-600" />
+                    <span className="font-semibold text-slate-700">Budget Breakdown</span>
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Hotel</span>
+                      <span className="font-medium">${Math.round(recommendations.budget_breakdown.hotel_total || 0)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Activities</span>
+                      <span className="font-medium">${Math.round(recommendations.budget_breakdown.activities_total || 0)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Food</span>
+                      <span className="font-medium">${Math.round(recommendations.budget_breakdown.food_total || 0)}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
