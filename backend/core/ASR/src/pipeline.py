@@ -16,11 +16,7 @@ from datetime import datetime
 import numpy as np
 import torch
 from collections import deque
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+
 logger = logging.getLogger("ASR_Pipeline")
 
 class TranscriptionService:
@@ -30,15 +26,14 @@ class TranscriptionService:
     """
     @traceable(run_type="tool", name="transcription_service_initialization")
     def __init__(self, 
-                 chunk_duration: float = 2.0,  # seconds
-                 overlap_duration: float = 0.5,  # seconds
+                 chunk_duration: float = 2.0,  
+                 overlap_duration: float = 0.5,  
                  min_confidence: float = 0.3,
                  buffer_size: int = 10):
         initialization_start_time = time.time()
         try:
             logger.info("Initializing Real-Time TranscriptionService...")
             
-            # Real-time processing parameters
             self.chunk_duration = chunk_duration
             self.overlap_duration = overlap_duration
             self.min_confidence = min_confidence
@@ -46,7 +41,6 @@ class TranscriptionService:
             self.chunk_samples = int(chunk_duration * self.sample_rate)
             self.overlap_samples = int(overlap_duration * self.sample_rate)
             
-            # Audio buffer for streaming
             self.audio_buffer = deque(maxlen=buffer_size * self.chunk_samples)
             self.is_processing = False
             
@@ -142,6 +136,7 @@ class TranscriptionService:
                 )
 
                 text = result.get("text", "").strip()
+                text = self.asr_infrence.filter_text(text)
                 confidence = result.get("avg_confidence", 0.0)
                 if not text or confidence <= 0.3:
                     continue

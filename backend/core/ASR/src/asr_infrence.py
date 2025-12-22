@@ -37,7 +37,7 @@ def calculate_confidence_scores(scores, logits_shape):
     if current_run:
         current_run.extra = current_run.extra or {}
         current_run.extra.update({
-            "entropy_values": entropy.tolist()[:10],  # First 10 entropy values
+            "entropy_values": entropy.tolist()[:10], 
             "max_entropy": max_entropy.item(),
             "avg_confidence": avg_conf,
             "confidence_method": "entropy_normalization",
@@ -98,7 +98,7 @@ def process_audio_chunk(chunk, chunk_index, total_chunks, sr, tgt_lang, device):
             "token_count": len(token_ids[0]),
             "processing_time_seconds": processing_time,
             "text_length": len(text),
-            "confidence_scores": flat_confidence[:10]  # First 10 scores to avoid too much data
+            "confidence_scores": flat_confidence[:10]  
         })
     
     print(f"[chunk {chunk_index}] Text: {text}")
@@ -141,10 +141,9 @@ def transcribe(audio_path: str, tgt_lang: str = "arb"):
         })
 
     final_text = ""
-    device = torch.device(ASR.device)  # ensure correct type
+    device = torch.device(ASR.device)  
     
     for i, chunk in enumerate(chunks, start=1):
-        # Process chunk with tracing
         chunk_result = process_audio_chunk(
             chunk=chunk,
             chunk_index=i,
@@ -157,9 +156,28 @@ def transcribe(audio_path: str, tgt_lang: str = "arb"):
         chunk_results.append(chunk_result)
         final_text += " " + chunk_result["text"]
 
-        # Clear MPS cache after each chunk if using MPS device
         if device.type == "mps":
             torch.mps.empty_cache()
             print(f"[cleanup] MPS cache cleared for chunk {i}")
     return final_text.strip(), chunk_results  
             
+    def  filter_text(self, text: str) -> str:
+        if not text:
+            return text
+
+        phone_pattern = re.compile(
+            r"""
+            (?<!\d)                              
+            (?:\+20|0020|0)                    
+            1[0-16]                        
+            [\s\-]?\d{3}[\s\-]?\d{4}          
+            (?!\d)                            
+            """,
+            re.VERBOSE
+        )
+
+        id_pattern = re.compile(r'(?<!\d)\d{14}(?!\d)')
+        text = phone_pattern.sub("[REDACTED_PHONE]", text)
+        text = id_pattern.sub("[REDACTED_ID]", text)
+
+        return text
