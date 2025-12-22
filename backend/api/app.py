@@ -359,6 +359,14 @@ async def websocket_endpoint(websocket: WebSocket):
                                     ws_connected = False
                                     break
                                 
+                                # Send profile update to frontend for Customer Profile Card
+                                await safe_send_json(websocket, {
+                                    "type": "profile_update",
+                                    "call_id": call_id,
+                                    "segment": segment_count,
+                                    "profile": final_profile
+                                })
+                                
                                 # 3. Generate recommendations if we have enough data
                                 try:
                                     # Build user profile from accumulated extraction data

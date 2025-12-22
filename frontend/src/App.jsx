@@ -31,6 +31,7 @@ const TravelDashboard = () => {
   const [questionsLoading, setQuestionsLoading] = useState(false);
   const [questionsError, setQuestionsError] = useState(null);
   const [recommendations, setRecommendations] = useState(null);
+  const [customerProfile, setCustomerProfile] = useState(null);
   const currentCallIdRef = useRef(null);
 
   const mediaStreamRef = useRef(null);
@@ -145,6 +146,11 @@ const TravelDashboard = () => {
           }
         } else if (message.type === 'profile_update') {
           console.log('Profile updated:', message.profile);
+          setCustomerProfile({
+            ...message.profile,
+            lastUpdated: new Date().toLocaleTimeString(),
+            segment: message.segment
+          });
         } else if (message.type === 'recommendations') {
           console.log('Recommendations received:', message);
           setRecommendations({
@@ -388,69 +394,118 @@ const TravelDashboard = () => {
           <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
             <div className="flex justify-between items-start mb-6">
               <h2 className="text-xl font-bold text-slate-800">Customer Profile</h2>
-              <span className="bg-green-100 text-green-700 text-xs font-bold px-3 py-1.5 rounded-full">
-                85% Complete
-              </span>
+              {customerProfile?.lastUpdated ? (
+                <span className="bg-green-100 text-green-700 text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1">
+                  <RefreshCw className="w-3 h-3" />
+                  Updated {customerProfile.lastUpdated}
+                </span>
+              ) : (
+                <span className="bg-slate-100 text-slate-500 text-xs font-bold px-3 py-1.5 rounded-full">
+                  Waiting for data...
+                </span>
+              )}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-y-8 gap-x-8">
               {/* Travelers */}
               <div className="flex gap-4">
-                <div className="bg-blue-50 p-2.5 rounded-lg h-fit">
-                  <User className="text-blue-600 w-5 h-5" />
+                <div className={`p-2.5 rounded-lg h-fit ${customerProfile?.adults || customerProfile?.children ? 'bg-blue-50' : 'bg-slate-50'}`}>
+                  <User className={`w-5 h-5 ${customerProfile?.adults || customerProfile?.children ? 'text-blue-600' : 'text-slate-400'}`} />
                 </div>
                 <div>
                   <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Travelers</p>
-                  <p className="font-semibold text-slate-800">2 Adults (30s)</p>
+                  <p className="font-semibold text-slate-800">
+                    {customerProfile?.adults || customerProfile?.children ? (
+                      <>
+                        {customerProfile?.adults && `${customerProfile.adults} Adult${parseInt(customerProfile.adults) > 1 ? 's' : ''}`}
+                        {customerProfile?.adults && customerProfile?.children && ', '}
+                        {customerProfile?.children && `${customerProfile.children} Child${parseInt(customerProfile.children) > 1 ? 'ren' : ''}`}
+                        {customerProfile?.children_ages && ` (Age: ${customerProfile.children_ages})`}
+                      </>
+                    ) : (
+                      <span className="text-slate-400 font-normal">Not specified yet</span>
+                    )}
+                  </p>
                 </div>
               </div>
 
               {/* Dates */}
               <div className="flex gap-4">
-                <div className="bg-blue-50 p-2.5 rounded-lg h-fit">
-                  <Calendar className="text-blue-600 w-5 h-5" />
+                <div className={`p-2.5 rounded-lg h-fit ${customerProfile?.check_in || customerProfile?.check_out ? 'bg-blue-50' : 'bg-slate-50'}`}>
+                  <Calendar className={`w-5 h-5 ${customerProfile?.check_in || customerProfile?.check_out ? 'text-blue-600' : 'text-slate-400'}`} />
                 </div>
                 <div>
                   <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Dates</p>
-                  <p className="font-semibold text-slate-800">Dec 15-22, 2025</p>
+                  <p className="font-semibold text-slate-800">
+                    {customerProfile?.check_in || customerProfile?.check_out ? (
+                      <>
+                        {customerProfile?.check_in || 'TBD'} - {customerProfile?.check_out || 'TBD'}
+                      </>
+                    ) : (
+                      <span className="text-slate-400 font-normal">Not specified yet</span>
+                    )}
+                  </p>
                 </div>
               </div>
 
               {/* Budget */}
               <div className="flex gap-4">
-                <div className="bg-blue-50 p-2.5 rounded-lg h-fit">
-                  <DollarSign className="text-blue-600 w-5 h-5" />
+                <div className={`p-2.5 rounded-lg h-fit ${customerProfile?.budget ? 'bg-blue-50' : 'bg-slate-50'}`}>
+                  <DollarSign className={`w-5 h-5 ${customerProfile?.budget ? 'text-blue-600' : 'text-slate-400'}`} />
                 </div>
                 <div>
                   <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Budget</p>
-                  <p className="font-semibold text-slate-800">$4,000 - $5,000</p>
+                  <p className="font-semibold text-slate-800">
+                    {customerProfile?.budget ? (
+                      `$${Number(customerProfile.budget).toLocaleString()}`
+                    ) : (
+                      <span className="text-slate-400 font-normal">Not specified yet</span>
+                    )}
+                  </p>
                 </div>
               </div>
 
               {/* Destination */}
               <div className="flex gap-4">
-                <div className="bg-blue-50 p-2.5 rounded-lg h-fit">
-                  <MapPin className="text-blue-600 w-5 h-5" />
+                <div className={`p-2.5 rounded-lg h-fit ${customerProfile?.city ? 'bg-blue-50' : 'bg-slate-50'}`}>
+                  <MapPin className={`w-5 h-5 ${customerProfile?.city ? 'text-blue-600' : 'text-slate-400'}`} />
                 </div>
                 <div>
                   <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-1">Destination</p>
-                  <p className="font-semibold text-slate-800">Egypt <span className="font-normal text-gray-500 text-sm">(Not specific yet)</span></p>
+                  <p className="font-semibold text-slate-800">
+                    {customerProfile?.city ? (
+                      customerProfile.city
+                    ) : (
+                      <span className="text-slate-400 font-normal">Not specified yet</span>
+                    )}
+                  </p>
                 </div>
               </div>
 
               {/* Interests - Spans full width on mobile, standard on desktop */}
               <div className="flex gap-4 md:col-span-2 items-start mt-2">
-                <div className="bg-blue-50 p-2.5 rounded-lg h-fit shrink-0">
-                  <Heart className="text-blue-600 w-5 h-5" />
+                <div className={`p-2.5 rounded-lg h-fit shrink-0 ${(customerProfile?.activities?.length > 0 || customerProfile?.preferences?.length > 0) ? 'bg-blue-50' : 'bg-slate-50'}`}>
+                  <Heart className={`w-5 h-5 ${(customerProfile?.activities?.length > 0 || customerProfile?.preferences?.length > 0) ? 'text-blue-600' : 'text-slate-400'}`} />
                 </div>
                 <div>
-                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Interests</p>
+                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Interests & Activities</p>
                   <div className="flex flex-wrap gap-2">
-                    {["History", "Photography", "Local Food", "Adventure"].map((tag) => (
-                      <span key={tag} className="bg-blue-50 text-blue-700 px-4 py-1.5 rounded-full text-sm font-medium border border-blue-100">
-                        {tag}
-                      </span>
-                    ))}
+                    {customerProfile?.activities?.length > 0 || customerProfile?.preferences?.length > 0 ? (
+                      <>
+                        {customerProfile?.activities?.map((activity, idx) => (
+                          <span key={`act-${idx}`} className="bg-green-50 text-green-700 px-4 py-1.5 rounded-full text-sm font-medium border border-green-100">
+                            {activity}
+                          </span>
+                        ))}
+                        {customerProfile?.preferences?.map((pref, idx) => (
+                          <span key={`pref-${idx}`} className="bg-blue-50 text-blue-700 px-4 py-1.5 rounded-full text-sm font-medium border border-blue-100">
+                            {pref}
+                          </span>
+                        ))}
+                      </>
+                    ) : (
+                      <span className="text-slate-400 text-sm">No interests captured yet</span>
+                    )}
                   </div>
                 </div>
               </div>
