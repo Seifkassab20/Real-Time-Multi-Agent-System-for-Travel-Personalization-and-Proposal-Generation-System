@@ -346,8 +346,15 @@ async def websocket_endpoint(websocket: WebSocket):
                                             extraction_data.get(key), 
                                             rule
                                         )
+                                
+                                # Convert dates to strings for Agent_output validation
+                                from datetime import date as date_type
+                                extraction_for_validation = extraction_data.copy()
+                                for date_key in ('check_in', 'check_out'):
+                                    if date_key in extraction_for_validation and isinstance(extraction_for_validation[date_key], date_type):
+                                        extraction_for_validation[date_key] = extraction_for_validation[date_key].isoformat()
                                     
-                                extraction = Agent_output(**extraction_data)
+                                extraction = Agent_output(**extraction_for_validation)
                                 
                                 # Notify frontend that extraction is done so it can fetch updated questions
                                 if not await safe_send_json(websocket, {
