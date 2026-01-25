@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 from backend.core.ASR.src.preprocess_audio import audio_utils
 from backend.core.ASR.src.load_model import LoadSeamlessModel
 from backend.core.tracing_config import get_metadata
@@ -55,9 +56,23 @@ def process_audio_chunk(chunk, chunk_index, total_chunks, sr, tgt_lang, device):
     
     print(f"[chunk {chunk_index}/{total_chunks}] Processing...")
     
+    # Validate chunk before processing
+    if chunk is None or len(chunk) == 0:
+        error_msg = f"Chunk {chunk_index} is empty or None"
+        print(f"[ERROR] {error_msg}")
+        raise ValueError(error_msg)
+    
+    # Ensure chunk is float numpy array
+    if not isinstance(chunk, np.ndarray):
+        print(f"[DEBUG] Converting chunk from {type(chunk)} to numpy array")
+        chunk = np.array(chunk)
+    
+    audio_input = chunk.astype(np.float32)
+    print(f"[DEBUG] Chunk {chunk_index} shape: {audio_input.shape}, dtype: {audio_input.dtype}, range: [{audio_input.min():.3f}, {audio_input.max():.3f}]")
+    
     # Convert audio chunk to model inputs
     inputs = processor(
-        audio=chunk.astype(float),
+        audios=audio_input,  # Changed from 'audio' to 'audios' for compatibility
         sampling_rate=sr,
         return_tensors="pt"
     ).to(device)

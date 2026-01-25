@@ -18,3 +18,5 @@ scraper.log
 .DS_Store
 test_data
 *.ipynb
+pyproject.toml
+requirements.txt

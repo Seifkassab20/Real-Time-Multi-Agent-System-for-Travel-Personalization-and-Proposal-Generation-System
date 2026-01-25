@@ -136,7 +136,6 @@ class TranscriptionService:
                 )
 
                 text = result.get("text", "").strip()
-                text = self.asr_infrence.filter_text(text)
                 confidence = result.get("avg_confidence", 0.0)
                 if not text or confidence <= 0.3:
                     continue

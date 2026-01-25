@@ -1,12 +1,9 @@
 python-dotenv==1.0.1
 pydantic==2.10.3
 pydantic-settings==2.6.1
-sqlalchemy==2.0.36
-asyncpg==0.30.0
 greenlet==3.1.1
 langchain-core==0.3.28
 langsmith==0.2.6
-ollama==0.4.4
 pandas==2.2.3
 numpy==2.2.0
 torch==2.5.1
@@ -14,7 +11,6 @@ torchaudio==2.5.1
 transformers==4.47.1
 accelerate==1.2.1
 playwright==1.49.1
-accelerate==1.12.0
 asyncpg==0.31.0
 backports.tarfile==1.2.0
 dotenv==0.9.9
@@ -22,13 +18,12 @@ dvc==3.64.2
 fastapi==0.126.0
 ffmpeg==1.4
 flufl-lock==8.2.0
-greenlet==3.3.0
 importlib-metadata==8.0.0
 ipykernel==7.1.0
 ipywidgets==8.1.8
 jaraco.collections==5.1.0
 jiwer==4.0.0
-langchain==1.1.2
+langchain
 librosa==0.11.0
 noisereduce==3.0.3
 ollama==0.6.1
@@ -48,9 +43,7 @@ sentencepiece==0.2.1
 sounddevice==0.5.3
 sqlalchemy==2.0.45
 tomli==2.0.1
-torchaudio==2.9.1
 torchcodec==0.9.0
-transformers==4.57.3
 uvicorn==0.40.0
 webrtcvad==2.0.10
 websockets==15.0.1

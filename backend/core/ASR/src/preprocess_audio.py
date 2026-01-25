@@ -10,7 +10,7 @@ load_dotenv()
 
 class audio_utils:
     def __init__(self) -> None:
-        self.max_duration_sec=float(os.getenv("CHUNK_LENGTH"))
+        self.max_duration_sec=20
 
     def preprocess_audio(self, audio_path: str) -> np.ndarray:
   
