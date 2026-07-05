@@ -6,6 +6,18 @@ The system is designed for **travel call-centers**: while the human agent talks 
 
 ---
 
+## 📸 Live Agent Dashboard
+
+While the call is live, the agent sees the customer profile fill in, the transcript stream, AI-generated package suggestions, and follow-up questions to ask — all updating in real time.
+
+![Live agent dashboard — customer profile, live transcript, and AI suggestions](assets/dashboard-live-call.jpeg)
+
+The **Ask Client** panel surfaces the exact questions (and the profile fields they fill) the agent should ask to complete the customer's requirements, alongside a live budget breakdown.
+
+![Ask Client questions and budget breakdown](assets/dashboard-ask-client.jpeg)
+
+---
+
 ## ✨ What It Does
 
 1. **Listens** – Streams audio from the browser (microphone) to the backend over a WebSocket.
@@ -219,6 +231,14 @@ keywords: list[str]
 ```
 
 These fields accumulate across the call via field-level merge rules (e.g. `activities` append, `adults` overwrite, `budget`/`city`/dates keep first value) to form the profile fed to the recommendation and planning agents.
+
+---
+
+## ⚠️ Risk Assessment & Mitigation
+
+Key operational risks for a real-time, multi-agent, LLM-driven pipeline were scored on a 5×5 impact/likelihood matrix, each with a mitigation strategy (e.g. caching for API failures, agent-to-agent optimization for latency, multi-model evaluation for underperformance, centralized state for data consistency, and centralized logging for monitoring).
+
+![5x5 risk mitigation matrix](assets/risk-mitigation-matrix.jpeg)
 
 ---
 
