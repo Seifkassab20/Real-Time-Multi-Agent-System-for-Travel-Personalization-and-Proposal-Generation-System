@@ -346,15 +346,8 @@ async def websocket_endpoint(websocket: WebSocket):
                                             extraction_data.get(key), 
                                             rule
                                         )
-                                
-                                # Convert dates to strings for Agent_output validation
-                                from datetime import date as date_type
-                                extraction_for_validation = extraction_data.copy()
-                                for date_key in ('check_in', 'check_out'):
-                                    if date_key in extraction_for_validation and isinstance(extraction_for_validation[date_key], date_type):
-                                        extraction_for_validation[date_key] = extraction_for_validation[date_key].isoformat()
                                     
-                                extraction = Agent_output(**extraction_for_validation)
+                                extraction = Agent_output(**extraction_data)
                                 
                                 # Notify frontend that extraction is done so it can fetch updated questions
                                 if not await safe_send_json(websocket, {
@@ -365,14 +358,6 @@ async def websocket_endpoint(websocket: WebSocket):
                                 }):
                                     ws_connected = False
                                     break
-                                
-                                # Send profile update to frontend for Customer Profile Card
-                                await safe_send_json(websocket, {
-                                    "type": "profile_update",
-                                    "call_id": call_id,
-                                    "segment": segment_count,
-                                    "profile": final_profile
-                                })
                                 
                                 # 3. Generate recommendations if we have enough data
                                 try:
@@ -394,7 +379,6 @@ async def websocket_endpoint(websocket: WebSocket):
                                         }
                                         if await safe_send_json(websocket, recommendations_payload):
                                             print(f"Recommendations sent for segment {segment_count}")
-                                            print(recommendations_payload)
                                         else:
                                             ws_connected = False
                                             break

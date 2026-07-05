@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.13-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -39,7 +39,7 @@ EXPOSE 8000 3000
 
 RUN echo '#!/bin/bash\n\
 cd /app/frontend && npm run preview -- --host 0.0.0.0 --port 3000 &\n\
-cd /app && python -m backend.api.app:app --host 0.0.0.0 --port 8000\n\
+cd /app && python -m backend.api.app\n\
 ' > /app/start.sh && chmod +x /app/start.sh
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \

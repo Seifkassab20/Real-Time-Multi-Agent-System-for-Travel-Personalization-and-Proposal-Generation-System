@@ -176,23 +176,23 @@ def transcribe(audio_path: str, tgt_lang: str = "arb"):
             print(f"[cleanup] MPS cache cleared for chunk {i}")
     return final_text.strip(), chunk_results  
             
-    def  filter_text(self, text: str) -> str:
-        if not text:
-            return text
+    # def  filter_text(self, text: str) -> str:
+    #     if not text:
+    #         return text
 
-        phone_pattern = re.compile(
-            r"""
-            (?<!\d)                              
-            (?:\+20|0020|0)                    
-            1[0-16]                        
-            [\s\-]?\d{3}[\s\-]?\d{4}          
-            (?!\d)                            
-            """,
-            re.VERBOSE
-        )
+    #     phone_pattern = re.compile(
+    #         r"""
+    #         (?<!\d)                              
+    #         (?:\+20|0020|0)                    
+    #         1[0-16]                        
+    #         [\s\-]?\d{3}[\s\-]?\d{4}          
+    #         (?!\d)                            
+    #         """,
+    #         re.VERBOSE
+    #     )
 
-        id_pattern = re.compile(r'(?<!\d)\d{14}(?!\d)')
-        text = phone_pattern.sub("[REDACTED_PHONE]", text)
-        text = id_pattern.sub("[REDACTED_ID]", text)
+    #     id_pattern = re.compile(r'(?<!\d)\d{14}(?!\d)')
+    #     text = phone_pattern.sub("[REDACTED_PHONE]", text)
+    #     text = id_pattern.sub("[REDACTED_ID]", text)
 
-        return text
+    #     return text
